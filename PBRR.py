@@ -174,6 +174,13 @@ class PBRR:
         self.ataques = []
         self.tempo_ataque = 0
         self.animacao_boss6 = None
+        self.animacao_entrada_ativa = True
+        self.entrando = False
+        self.entrada_origem_y = y
+        self.entrada_destino_y = y
+        self.entrada_inicio_ms = 0
+        self.entrada_duracao_ms = 500
+        self.entrada_alpha = 255
 
     def configurar_animacao_boss6(
         self,
@@ -197,37 +204,120 @@ class PBRR:
 
     def iniciar_animacao_boss6(self):
         if self.animacao_boss6 is not None:
+            if not self.animacao_entrada_ativa:
+                self.animacao_boss6["fase"] = "frente"
+                self.animacao_boss6["inicio"] = pygame.time.get_ticks()
+                return
             self.animacao_boss6["fase"] = "caindo"
             self.animacao_boss6["inicio"] = pygame.time.get_ticks()
+            self.animacao_boss6["y_final"] = self.entrada_destino_y
 
     def _pegar_sprite_boss6(self):
         animacao = self.animacao_boss6
+        if animacao is None:
+            return self.frente[0]
+
+        if not self.animacao_entrada_ativa:
+            sprites = animacao["frente"]
+            elapsed = pygame.time.get_ticks() - animacao["inicio"]
+            return sprites[(elapsed // animacao["duracao_frame"]) % len(sprites)]
+
         fase = animacao["fase"]
         if fase == "caindo":
-            elapsed = pygame.time.get_ticks() - animacao["inicio"]
-            if elapsed >= animacao["duracao_frame"]:
-                animacao["fase"] = "entrada"
-                animacao["inicio"] = pygame.time.get_ticks()
-                fase = "entrada"
-            else:
-                return animacao["sprite_caindo"]
+            return animacao["sprite_caindo"]
 
-        sprites = animacao[fase]
+        if fase == "entrada":
+            sprites = animacao["entrada"]
+            elapsed = pygame.time.get_ticks() - animacao["inicio"]
+            indice = min(len(sprites) - 1, elapsed //
+                         animacao["duracao_frame"])
+            return sprites[indice]
+
+        sprites = animacao["frente"]
         elapsed = pygame.time.get_ticks() - animacao["inicio"]
-        if fase == "entrada" and elapsed >= len(sprites) * animacao[
-            "duracao_frame"
-        ]:
-            animacao["fase"] = "frente"
-            animacao["inicio"] = pygame.time.get_ticks()
-            fase = "frente"
-            sprites = animacao[fase]
-            elapsed = 0
-        indice = elapsed // animacao["duracao_frame"]
-        if fase == "frente":
-            indice %= len(sprites)
-        else:
-            indice = min(len(sprites) - 1, indice)
+        indice = (elapsed // animacao["duracao_frame"]) % len(sprites)
         return sprites[indice]
+
+    def iniciar_entrada(self, destino_y=None):
+        if not self.animacao_entrada_ativa:
+            self.entrando = False
+            self.entrada_alpha = 255
+            if destino_y is not None:
+                self.y = destino_y
+            return
+
+        if destino_y is None:
+            destino_y = self.y
+
+        self.entrada_origem_y = self.y
+        self.entrada_destino_y = destino_y
+        self.entrada_inicio_ms = pygame.time.get_ticks()
+        self.entrada_alpha = 0
+        self.entrando = True
+
+    def obter_alpha_entrada(self):
+        if not self.animacao_entrada_ativa or not self.entrando:
+            return 255
+
+        elapsed = pygame.time.get_ticks() - self.entrada_inicio_ms
+        progresso = min(1.0, elapsed / max(1, self.entrada_duracao_ms))
+        self.entrada_alpha = int(progresso * 255)
+        return self.entrada_alpha
+
+    def atualizar_entrada(self):
+        if not self.animacao_entrada_ativa:
+            self.entrando = False
+            self.entrada_alpha = 255
+            return
+
+        if self.animacao_boss6 is not None:
+            animacao = self.animacao_boss6
+            if animacao["fase"] == "caindo":
+                if self.y < self.entrada_destino_y:
+                    self.y = min(self.entrada_destino_y, self.y + 12)
+                if self.y >= self.entrada_destino_y:
+                    animacao["fase"] = "entrada"
+                    animacao["inicio"] = pygame.time.get_ticks()
+                    self.entrada_alpha = 255
+                return
+
+            if animacao["fase"] == "entrada":
+                sprites = animacao["entrada"]
+                elapsed = pygame.time.get_ticks() - animacao["inicio"]
+                if elapsed >= len(sprites) * animacao["duracao_frame"]:
+                    animacao["fase"] = "frente"
+                    animacao["inicio"] = pygame.time.get_ticks()
+                    self.entrando = False
+                    self.entrada_alpha = 255
+                return
+
+        if not self.entrando:
+            return
+
+        elapsed = pygame.time.get_ticks() - self.entrada_inicio_ms
+        progresso = min(1.0, elapsed / max(1, self.entrada_duracao_ms))
+        self.y = int(
+            self.entrada_origem_y
+            + (self.entrada_destino_y - self.entrada_origem_y) * progresso
+        )
+        self.entrada_alpha = int(progresso * 255)
+        if progresso >= 1.0:
+            self.entrando = False
+            self.y = self.entrada_destino_y
+            self.entrada_alpha = 255
+
+    def esta_em_entrada(self):
+        if not self.animacao_entrada_ativa:
+            return False
+        return self.entrando or (
+            self.animacao_boss6 is not None and self.animacao_boss6["fase"] in (
+                "caindo",
+                "entrada"
+            )
+        )
+
+    def boss6_esta_em_entrada(self):
+        return self.esta_em_entrada()
 
     # =====================================================
     # PEGAR SPRITE ATUAL
@@ -242,6 +332,8 @@ class PBRR:
         """
 
         if self.animacao_boss6 is not None:
+            if self.animacao_entrada_ativa:
+                return self._pegar_sprite_boss6()
             return self._pegar_sprite_boss6()
 
         # Escolher lista de sprites baseado na direção
@@ -1237,7 +1329,10 @@ class PBRR:
             tela: pygame.Surface para desenhar
         """
 
-        sprite = self.pegar_sprite()
+        sprite = self.pegar_sprite().copy()
+        alpha = self.obter_alpha_entrada()
+        if alpha < 255:
+            sprite.set_alpha(alpha)
         tela.blit(sprite, (self.x, self.y))
 
     # =====================================================

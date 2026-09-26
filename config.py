@@ -46,4 +46,4 @@ ESCALA_BARRA_STAMINA = 3
 # TÍTULO
 # ==========================================
 
-TITULO = "Jogo inspirado em Undertale"
+TITULO = "RevoTale: uma mulher, mil escolhar"

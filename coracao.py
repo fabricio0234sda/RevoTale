@@ -14,7 +14,6 @@ class Coracao:
 
         self.ativo = False
 
-
         # ======================================
         # ANIMAÇÃO
         # ======================================
@@ -24,7 +23,6 @@ class Coracao:
         self.contador = 0
 
         self.velocidade = 8
-
 
         # ======================================
         # ESCURECIMENTO
@@ -43,7 +41,6 @@ class Coracao:
 
         self.alpha = 0
 
-
     # ==========================================
     # ATUALIZAR
     # ==========================================
@@ -51,7 +48,6 @@ class Coracao:
     def atualizar(self):
 
         self.contador += 1
-
 
         if (
             self.contador
@@ -63,7 +59,6 @@ class Coracao:
 
             self.indice += 1
 
-
             if (
                 self.indice
                 >=
@@ -71,7 +66,6 @@ class Coracao:
             ):
 
                 self.indice = 0
-
 
         # ======================================
         # ESCURECIMENTO
@@ -89,11 +83,9 @@ class Coracao:
 
                 self.alpha -= 5
 
-
         self.escurecimento.set_alpha(
             self.alpha
         )
-
 
     # ==========================================
     # DESENHAR
@@ -109,7 +101,6 @@ class Coracao:
 
             return
 
-
         # ======================================
         # ESCURECIMENTO
         # ======================================
@@ -118,7 +109,6 @@ class Coracao:
             self.escurecimento,
             (0, 0)
         )
-
 
         # ======================================
         # SPRITE
@@ -134,13 +124,13 @@ class Coracao:
             ].copy()
         )
 
-        nova_largura = max(1, int(sprite_coracao.get_width() * 0.6))
-        nova_altura = max(1, int(sprite_coracao.get_height() * 0.6))
+        # 2 vezes menor que o tamanho atual
+        nova_largura = max(1, int(sprite_coracao.get_width() * 0.3))
+        nova_altura = max(1, int(sprite_coracao.get_height() * 0.3))
         sprite_coracao = pygame.transform.smoothscale(
             sprite_coracao,
             (nova_largura, nova_altura)
         )
-
 
         # ======================================
         # POSIÇÃO
@@ -168,7 +158,6 @@ class Coracao:
             // 2
         )
 
-
         # ======================================
         # ALPHA
         # ======================================
@@ -176,7 +165,6 @@ class Coracao:
         sprite_coracao.set_alpha(
             self.alpha * 2
         )
-
 
         tela.blit(
             sprite_coracao,

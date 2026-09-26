@@ -3,7 +3,7 @@ import random
 
 import pygame
 
-from config import ALTURA, LARGURA
+from config import ALTURA, LARGURA, TAMANHO_TILE
 from colisao import eh_parede
 
 
@@ -17,6 +17,18 @@ BOSS_ORDEM = [
     "boss6",
     "boss7"
 ]
+
+# Escolha individualmente para cada boss:
+# True = mostra a queda/entrada; False = começa já na posição normal.
+ANIMACAO_ENTRADA_BOSS = {
+    "pbrr": True,
+    "boss2": False,
+    "boss3": True,
+    "boss4": True,
+    "boss5": False,
+    "boss6": True,
+    "boss7": False,
+}
 
 
 # Dados individuais de cada boss.
@@ -178,23 +190,36 @@ class GerenciadorBosses:
                     )
                     self.dados = dados
                     for indice_ativo, boss_ativo in enumerate(self.bosses_ativos):
+                        boss_ativo.animacao_entrada_ativa = ANIMACAO_ENTRADA_BOSS.get(
+                            identificador,
+                            True
+                        )
                         boss_ativo.dano_ataque = dados["dano"]
                         boss_ativo.ia_ativa = False if identificador in (
                             "boss3", "boss4", "boss5", "boss6", "boss7"
                         ) else True
                         sprite = boss_ativo.pegar_sprite()
+                        destino_y = (ALTURA - sprite.get_height()) // 2
 
                         if self.posicao_ultimo_boss is not None and identificador not in (
                             "boss5",
                         ):
                             boss_ativo.x = self.posicao_ultimo_boss[0]
-                            boss_ativo.y = self.posicao_ultimo_boss[1]
+                            if boss_ativo.animacao_entrada_ativa:
+                                boss_ativo.y = -sprite.get_height() - 20
+                                boss_ativo.iniciar_entrada(destino_y)
+                            else:
+                                boss_ativo.y = self.posicao_ultimo_boss[1]
                             self.posicao_ultimo_boss = None
                         elif identificador == "boss5":
                             offset_x = -200 if indice_ativo == 0 else 200
                             boss_ativo.x = (
                                 LARGURA - sprite.get_width()) // 2 + offset_x
-                            boss_ativo.y = (ALTURA - sprite.get_height()) // 2
+                            if boss_ativo.animacao_entrada_ativa:
+                                boss_ativo.y = -sprite.get_height() - 20
+                                boss_ativo.iniciar_entrada(destino_y)
+                            else:
+                                boss_ativo.y = destino_y
                             boss_ativo.ia_ativa = False
                             boss_ativo.movimento_x = 0
                             boss_ativo.movimento_y = 0
@@ -202,7 +227,11 @@ class GerenciadorBosses:
                             boss_ativo.ataques.clear()
                         else:
                             boss_ativo.x = (LARGURA - sprite.get_width()) // 2
-                            boss_ativo.y = (ALTURA - sprite.get_height()) // 2
+                            if boss_ativo.animacao_entrada_ativa:
+                                boss_ativo.y = -sprite.get_height() - 20
+                                boss_ativo.iniciar_entrada(destino_y)
+                            else:
+                                boss_ativo.y = destino_y
 
                     if identificador == "boss5":
                         self.boss5_vidas = {
@@ -263,8 +292,9 @@ class GerenciadorBosses:
         if self.item_papel is not None or self.documento_ativo:
             return
 
-        if any(boss.boss6_esta_em_entrada() for boss in self.bosses_ativos):
-            self.boss.pegar_sprite()
+        if any(boss.esta_em_entrada() for boss in self.bosses_ativos):
+            for boss in self.bosses_ativos:
+                boss.atualizar_entrada()
             return
 
         for boss in self.bosses_ativos:
@@ -581,6 +611,24 @@ class GerenciadorBosses:
         }
         self.documento_ativo = True
 
+    def _obter_x_parede_impacto(self, rect, sentido):
+        passo = max(1, TAMANHO_TILE // 4)
+        for y in range(rect.top, rect.bottom + 1, passo):
+            for x in range(rect.left, rect.right + 1, passo):
+                if not eh_parede(int(x), int(y)):
+                    continue
+
+                tile_coluna = int(x // TAMANHO_TILE)
+                tile_linha = int(y // TAMANHO_TILE)
+                borda_tile = tile_coluna * TAMANHO_TILE
+                borda_direita = (tile_coluna + 1) * TAMANHO_TILE
+
+                if sentido > 0:
+                    return max(0, borda_tile - rect.width)
+                return min(LARGURA, borda_direita)
+
+        return rect.x
+
     def _colidiu_com_parede_item(self, rect):
         pontos = [
             (rect.left + 2, rect.top + 2),
@@ -607,11 +655,12 @@ class GerenciadorBosses:
             self.item_papel["vel_y"] += self.item_papel["gravidade"]
 
             if self._colidiu_com_parede_item(self.item_papel["rect"]):
-                self.item_papel["vel_y"] = - \
-                    abs(self.item_papel["vel_y"]) * 0.45
-                self.item_papel["vel_x"] *= 0.7
-                self.item_papel["rect"].y = max(
-                    0, self.item_papel["rect"].y - 4)
+                sentido = 1 if self.item_papel["vel_x"] >= 0 else -1
+                self.item_papel["rect"].x = self._obter_x_parede_impacto(
+                    self.item_papel["rect"],
+                    sentido
+                )
+                self.item_papel["vel_x"] = 0
 
             if self.item_papel["girando"]:
                 self.item_papel["angulo"] += self.item_papel["rotacao_vel"]

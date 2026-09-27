@@ -149,6 +149,7 @@ class GerenciadorBosses:
         self.item_papel = None
         self.documento_em_exibicao = None
         self.documento_ativo = False
+        self.chave_coletada = False
         self.efeito_derrota = None
         self.posicao_ultimo_boss = None
         self._proximo_boss_em_execucao = False
@@ -198,27 +199,33 @@ class GerenciadorBosses:
                         boss_ativo.ia_ativa = False if identificador in (
                             "boss3", "boss4", "boss5", "boss6", "boss7"
                         ) else True
+                        boss_ativo.entrando = False
+                        boss_ativo.entrada_iniciada = False
+                        boss_ativo.entrada_alpha = 255
+                        boss_ativo.entrada_origem_y = boss_ativo.y
+                        boss_ativo.entrada_destino_y = boss_ativo.y
                         sprite = boss_ativo.pegar_sprite()
                         destino_y = (ALTURA - sprite.get_height()) // 2
 
-                        if self.posicao_ultimo_boss is not None and identificador not in (
+                        if identificador in ("boss3", "boss4"):
+                            boss_ativo.x = (LARGURA - sprite.get_width()) // 2
+                            boss_ativo.y = -sprite.get_height() - 20
+                            if not boss_ativo.animacao_entrada_ativa:
+                                boss_ativo.y = destino_y
+                        elif self.posicao_ultimo_boss is not None and identificador not in (
                             "boss5",
                         ):
                             boss_ativo.x = self.posicao_ultimo_boss[0]
-                            if boss_ativo.animacao_entrada_ativa:
-                                boss_ativo.y = -sprite.get_height() - 20
-                                boss_ativo.iniciar_entrada(destino_y)
-                            else:
+                            boss_ativo.y = -sprite.get_height() - 20
+                            if not boss_ativo.animacao_entrada_ativa:
                                 boss_ativo.y = self.posicao_ultimo_boss[1]
                             self.posicao_ultimo_boss = None
                         elif identificador == "boss5":
                             offset_x = -200 if indice_ativo == 0 else 200
                             boss_ativo.x = (
                                 LARGURA - sprite.get_width()) // 2 + offset_x
-                            if boss_ativo.animacao_entrada_ativa:
-                                boss_ativo.y = -sprite.get_height() - 20
-                                boss_ativo.iniciar_entrada(destino_y)
-                            else:
+                            boss_ativo.y = -sprite.get_height() - 20
+                            if not boss_ativo.animacao_entrada_ativa:
                                 boss_ativo.y = destino_y
                             boss_ativo.ia_ativa = False
                             boss_ativo.movimento_x = 0
@@ -227,10 +234,8 @@ class GerenciadorBosses:
                             boss_ativo.ataques.clear()
                         else:
                             boss_ativo.x = (LARGURA - sprite.get_width()) // 2
-                            if boss_ativo.animacao_entrada_ativa:
-                                boss_ativo.y = -sprite.get_height() - 20
-                                boss_ativo.iniciar_entrada(destino_y)
-                            else:
+                            boss_ativo.y = -sprite.get_height() - 20
+                            if not boss_ativo.animacao_entrada_ativa:
                                 boss_ativo.y = destino_y
 
                     if identificador == "boss5":
@@ -280,6 +285,15 @@ class GerenciadorBosses:
         identificador = self.dialogo_pendente
         self.dialogo_pendente = None
         return identificador
+
+    def iniciar_entrada_boss_ativo(self):
+        if self.boss is None:
+            return
+
+        if self.boss.animacao_entrada_ativa and not self.boss.entrada_iniciada:
+            sprite = self.boss.pegar_sprite()
+            destino_y = (ALTURA - sprite.get_height()) // 2
+            self.boss.iniciar_entrada(destino_y)
 
     def atualizar(self, interface):
         if not self.iniciado or self.boss is None:
@@ -338,7 +352,8 @@ class GerenciadorBosses:
         origem = self.jogador.obter_rect_dano().center
         self.balas.append({
             "posicao": pygame.Vector2(origem),
-            "direcao": self.direcao_disparo.copy()
+            "direcao": self.direcao_disparo.copy(),
+            "disparado_ms": agora
         })
         self.tempo_ultimo_disparo = agora
 
@@ -526,7 +541,12 @@ class GerenciadorBosses:
             "girando": True
         }
 
-    def _iniciar_documento(self, documento, texto_documento=None):
+    def _iniciar_documento(
+        self,
+        documento,
+        texto_documento=None,
+        avancar_boss=True
+    ):
         if not documento:
             return
 
@@ -607,9 +627,17 @@ class GerenciadorBosses:
             "inicio": pygame.time.get_ticks(),
             "scroll": 0,
             "documento": documento,
-            "rect": rect_documento
+            "rect": rect_documento,
+            "avancar_boss": avancar_boss
         }
         self.documento_ativo = True
+
+    def iniciar_documento_final(self, texto_documento):
+        self._iniciar_documento(
+            "assets/Documentos/Documento1.png",
+            texto_documento,
+            avancar_boss=False
+        )
 
     def _obter_x_parede_impacto(self, rect, sentido):
         passo = max(1, TAMANHO_TILE // 4)
@@ -655,12 +683,12 @@ class GerenciadorBosses:
             self.item_papel["vel_y"] += self.item_papel["gravidade"]
 
             if self._colidiu_com_parede_item(self.item_papel["rect"]):
-                sentido = 1 if self.item_papel["vel_x"] >= 0 else -1
-                self.item_papel["rect"].x = self._obter_x_parede_impacto(
-                    self.item_papel["rect"],
-                    sentido
-                )
                 self.item_papel["vel_x"] = 0
+                self.item_papel["vel_y"] = 0
+                self.item_papel["gravidade"] = 0
+                self.item_papel["quicada"] = False
+                self.item_papel["rotacao_vel"] = 0
+                self.item_papel["girando"] = False
 
             if self.item_papel["girando"]:
                 self.item_papel["angulo"] += self.item_papel["rotacao_vel"]
@@ -691,6 +719,10 @@ class GerenciadorBosses:
                 self.item_papel["vel_x"] *= -0.4
 
             if jogador.obter_rect().colliderect(self.item_papel["rect"]):
+                if self.item_papel.get("tipo") == "chave":
+                    self.chave_coletada = True
+                    jogador.tem_chave = True
+
                 self._iniciar_documento(
                     self.item_papel["documento"],
                     self.item_papel.get("texto_documento")
@@ -725,6 +757,8 @@ class GerenciadorBosses:
             if elapsed >= 500:
                 self.documento_em_exibicao = None
                 self.documento_ativo = False
+                if not estado.get("avancar_boss", True):
+                    return
                 if self.identificador == "boss5":
                     if any(self.boss5_vivos.values()):
                         self._processar_drop_boss5()
@@ -819,7 +853,14 @@ class GerenciadorBosses:
                 (bala_rect.left, bala_rect.bottom - 1),
                 (bala_rect.right - 1, bala_rect.bottom - 1)
             ]
-            if any(eh_parede(x, y) for x, y in pontos):
+            disparado_ms = bala.setdefault(
+                "disparado_ms",
+                pygame.time.get_ticks()
+            )
+            if (
+                pygame.time.get_ticks() - disparado_ms >= 200
+                and any(eh_parede(x, y) for x, y in pontos)
+            ):
                 continue
 
             if (

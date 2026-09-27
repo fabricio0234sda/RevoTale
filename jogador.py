@@ -106,6 +106,7 @@ class Jogador:
         self.stamina = STAMINA_MAXIMA
         self.coracao = None
         self.usando_coracao = False
+        self.tem_chave = False
         self._ultimo_tempo_stamina = pygame.time.get_ticks()
 
     def definir_coracao(self, coracao):

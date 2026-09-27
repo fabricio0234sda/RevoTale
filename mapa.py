@@ -28,7 +28,7 @@ LINHAS = ALTURA // TAMANHO_TILE
 
 
 # ==========================================
-# MAPA TESTE 1
+# MAPAS
 # ==========================================
 
 COLUNAS = (
@@ -41,32 +41,100 @@ LINHAS = (
     // TAMANHO_TILE
 )
 
-MAPA_CHAO = [
-    [2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2],
-    [2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2],
-    [2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2],
-    [2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2],
-    [2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2],
-    [2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2],
-    [2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2],
-    [2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2],
-    [2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2],
-    [2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2]
-]
+MAPAS = {
+    1: {
+        "chao": [
+            [2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2],
+            [2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2],
+            [2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2],
+            [2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2],
+            [2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2],
+            [2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2],
+            [2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2],
+            [2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2],
+            [2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2],
+            [2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2]
+        ],
+        "parede": [
+            [2, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 4],
+            [6, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 8],
+            [6, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 8],
+            [6, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 8],
+            [6, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 8],
+            [6, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 8],
+            [6, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 8],
+            [6, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 8],
+            [6, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 8],
+            [10, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 12]
+        ]
+    },
+    2: {
+        "chao": [
+            [2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2],
+            [2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2],
+            [2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2],
+            [2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2],
+            [2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2],
+            [2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2],
+            [2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2],
+            [2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2],
+            [2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2],
+            [2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2]
+        ],
+        "parede": [
+            [2, 3, 3, 3, 3, 0, 0, 0, 3, 3, 3, 3, 4],
+            [6, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 8],
+            [6, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 8],
+            [6, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 8],
+            [6, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 8],
+            [6, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 8],
+            [6, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 8],
+            [6, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 8],
+            [6, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 8],
+            [10, 11, 11, 11, 11, 0, 0, 11, 11, 11, 11, 11, 12]
+        ]
+    }
+}
 
-MAPA_PAREDE = [
+MAPA_ATUAL = 1
+MAPA_CHAO = [linha[:] for linha in MAPAS[MAPA_ATUAL]["chao"]]
+MAPA_PAREDE = [linha[:] for linha in MAPAS[MAPA_ATUAL]["parede"]]
+PORTA_ABERTA = False
 
-    [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
-    [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
-    [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
-    [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
-    [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
-    [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
-    [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
-    [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
-    [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
-    [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1]
-]
+
+def definir_mapa(numero):
+    global MAPA_ATUAL, MAPA_CHAO, MAPA_PAREDE
+
+    if numero not in MAPAS:
+        return
+
+    MAPA_ATUAL = numero
+    MAPA_CHAO = [linha[:] for linha in MAPAS[numero]["chao"]]
+    MAPA_PAREDE = [linha[:] for linha in MAPAS[numero]["parede"]]
+
+
+def definir_porta_aberta(aberta):
+    global PORTA_ABERTA
+    PORTA_ABERTA = aberta
+
+
+def obter_rect_porta():
+    # Porta alinhada à grade de tiles: 2 tiles de largura na parte central
+    # da linha superior das paredes.
+    x = 6 * TAMANHO_TILE
+    y = 0
+    return pygame.Rect(x, y, 2 * TAMANHO_TILE, TAMANHO_TILE)
+
+
+def obter_rect_passagem_porta():
+    rect_porta = obter_rect_porta()
+    largura_passagem = 54
+    return pygame.Rect(
+        rect_porta.centerx - largura_passagem // 2,
+        rect_porta.top,
+        largura_passagem,
+        rect_porta.height
+    )
 
 
 # ==========================================
@@ -82,19 +150,25 @@ def pegar_tile(
     # VERIFICAR ÍNDICE
     # ======================================
 
-    if indice < 0:
+    colunas_tileset = 4
+    linhas_tileset = 3
+    total_tiles = colunas_tileset * linhas_tileset
+
+    if indice is None or indice <= 0:
         return None
 
-    if indice >= 9:
+    if indice > total_tiles:
         return None
 
     # ======================================
     # POSIÇÃO NO TILESET
     # ======================================
+    # A ordem do atlas começa em 1, com blocos vazios posicionados em
+    # 1, 5, 7 e 9, então a conversão precisa considerar esse deslocamento.
 
-    coluna = indice % 3
-
-    linha = indice // 3
+    indice_atlas = indice - 1
+    coluna = indice_atlas % colunas_tileset
+    linha = indice_atlas // colunas_tileset
 
     # ======================================
     # RECORTAR TILE
@@ -124,10 +198,33 @@ def pegar_tile(
 # DESENHAR CHÃO
 # ==========================================
 
+def pegar_tile_chao(tileset):
+    """O tileset do chão é 4x2; o único tile útil é o slot 2."""
+    if tileset is None:
+        return None
+
+    largura = tileset.get_width() // 4
+    altura = tileset.get_height() // 2
+
+    tile = tileset.subsurface(
+        pygame.Rect(
+            1 * largura,
+            0 * altura,
+            largura,
+            altura
+        )
+    )
+    return pygame.transform.scale(tile, (TAMANHO_TILE, TAMANHO_TILE))
+
+
 def desenhar_chao(
     tela,
     chao
 ):
+
+    tile_chao = pegar_tile_chao(chao)
+    if tile_chao is None:
+        return
 
     for linha in range(
         len(MAPA_CHAO)
@@ -143,43 +240,14 @@ def desenhar_chao(
                 coluna
             ]
 
-            # ==================================
-            # TILE VAZIO
-            # ==================================
-
             if tile_id == 0:
                 continue
 
-            # ==================================
-            # POSIÇÃO
-            # ==================================
-
-            x = (
-                coluna
-                *
-                TAMANHO_TILE
-            )
-
-            y = (
-                linha
-                *
-                TAMANHO_TILE
-            )
-
-            # ==================================
-            # DESENHAR CHÃO
-            # ==================================
-
-            tile = pegar_tile(
-                chao,
-                tile_id - 1
-            )
-
-            if tile is None:
-                continue
+            x = coluna * TAMANHO_TILE
+            y = linha * TAMANHO_TILE
 
             tela.blit(
-                tile,
+                tile_chao,
                 (
                     x,
                     y

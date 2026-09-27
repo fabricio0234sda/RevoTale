@@ -14,7 +14,8 @@ from config import (
     FPS,
     TITULO,
     VIDA_MAXIMA,
-    ESCALA
+    ESCALA,
+    TAMANHO_TILE
 )
 
 
@@ -29,7 +30,7 @@ from tela_inicial import tela_inicial
 # CENAS
 # ==========================================
 
-from cenas import mostrar_cenas
+from cenas import mostrar_cenas, mostrar_final, quebrar_texto
 
 
 # ==========================================
@@ -46,7 +47,8 @@ from recursos import (
     carregar_boss,
     carregar_boss6,
     carregar_boss7,
-    carregar_arma
+    carregar_arma,
+    carregar_porta
 )
 
 
@@ -98,7 +100,11 @@ from interface import Interface
 
 from mapa import (
     desenhar_chao,
-    desenhar_paredes
+    desenhar_paredes,
+    definir_mapa,
+    obter_rect_porta,
+    obter_rect_passagem_porta,
+    definir_porta_aberta
 )
 
 
@@ -148,6 +154,7 @@ tela_jogo = pygame.Surface(
         ALTURA
     )
 )
+superficie_transicao = pygame.Surface((LARGURA, ALTURA))
 
 
 # ==========================================
@@ -230,6 +237,60 @@ def apresentar_tela():
             (altura_tela - novo_tamanho[1]) // 2
         )
     )
+
+
+class IndicadorInteracao:
+
+    def __init__(self):
+        self.sprites = [
+            pygame.transform.scale(
+                pygame.image.load(
+                    f"assets/particulas/E{indice}.png"
+                ).convert_alpha(),
+                (29, 29)
+            )
+            for indice in (1, 2)
+        ]
+        self.alvo = None
+        self.progresso = 0.0
+        self.ultimo_tempo = pygame.time.get_ticks()
+
+    def atualizar(self, alvo):
+        agora = pygame.time.get_ticks()
+        delta = max(0, agora - self.ultimo_tempo)
+        self.ultimo_tempo = agora
+        self.alvo = alvo
+
+        if alvo is not None:
+            self.progresso = min(1.0, self.progresso + delta / 250)
+        else:
+            self.progresso = max(0.0, self.progresso - delta / 250)
+
+    def desenhar(self, tela, personagem):
+        if self.progresso <= 0:
+            return
+
+        agora = pygame.time.get_ticks()
+        sprite = self.sprites[(agora // 800) % len(self.sprites)]
+        tamanho = max(1, int(29 * self.progresso))
+        sprite = pygame.transform.scale(sprite, (tamanho, tamanho))
+        angulo = math.sin(agora / 350) * 20
+        sprite = pygame.transform.rotate(sprite, angulo)
+        sprite.set_alpha(int(255 * self.progresso))
+
+        rect_personagem = personagem.pegar_sprite().get_rect(
+            topleft=(personagem.x, personagem.y)
+        )
+        deslocamento_x = math.sin(agora / 420) * 3
+        deslocamento_y = math.sin(agora / 510) * 3
+        distancia_saida = 46 * self.progresso
+        rect = sprite.get_rect(
+            center=(
+                int(rect_personagem.centerx + deslocamento_x),
+                int(rect_personagem.centery + distancia_saida + deslocamento_y)
+            )
+        )
+        tela.blit(sprite, rect)
 
 
 # ==========================================
@@ -402,6 +463,184 @@ jogador = Jogador(
     largura_tela=LARGURA,
     altura_tela=ALTURA
 )
+indicador_interacao = IndicadorInteracao()
+
+# ==========================================
+# MAPA ATIVO E PORTA DE SAÍDA
+# ==========================================
+
+mapa_ativo = 1
+definir_mapa(mapa_ativo)
+porta_sprites = carregar_porta()
+porta_sprite_selecionada = pygame.transform.scale(
+    pygame.image.load("assets/porta/portaselected.png").convert_alpha(),
+    (2 * TAMANHO_TILE, TAMANHO_TILE)
+)
+papel_final = pygame.transform.scale(
+    pygame.image.load("assets/Documentos/Papel.png").convert_alpha(),
+    (54, 54)
+)
+botao_normal = pygame.transform.scale(
+    pygame.image.load("assets/botao/botao1.png").convert_alpha(),
+    (23, 12)
+)
+botao_frames = [
+    botao_normal,
+    pygame.transform.scale(
+        pygame.image.load("assets/botao/botao2.png").convert_alpha(),
+        (23, 12)
+    ),
+    pygame.transform.scale(
+        pygame.image.load("assets/botao/botao3.png").convert_alpha(),
+        (23, 12)
+    )
+]
+botao_selecionado = pygame.transform.scale(
+    pygame.image.load("assets/botao/botaoselected.png").convert_alpha(),
+    (23, 12)
+)
+rect_papel_final = papel_final.get_rect(
+    center=(LARGURA // 2, ALTURA // 2)
+)
+rect_botao_final = botao_normal.get_rect(
+    center=(LARGURA // 2, rect_papel_final.top - 2)
+)
+texto_papel_final = (
+    "Incrompreensível! Inconcebível!\n"
+    "Parastes-me, contudo não admitirei funesto fim.\n"
+    "Consentirei com o extermínio das obras engendradas por ti, "
+    "mas terá de carregar também o fim seu e de vosso feudatário."
+)
+papel_final_coletado = False
+porta_estado = {
+    "fase": "idle",
+    "inicio": 0,
+    "indice": 0,
+    "finalizado": False,
+}
+botao_estado = {
+    "animando": False,
+    "inicio": 0
+}
+
+
+def atualizar_porta():
+    global mapa_ativo, porta_estado
+
+    agora = pygame.time.get_ticks()
+
+    if porta_estado["fase"] == "abrindo":
+        elapsed = agora - porta_estado["inicio"]
+        porta_estado["indice"] = min(7, int((elapsed / 1000) * 8))
+        if elapsed >= 1000:
+            porta_estado["indice"] = 7
+            definir_porta_aberta(True)
+            porta_estado["fase"] = "aberta"
+        return
+
+    if porta_estado["fase"] == "aberta":
+        rect_jogador = jogador.obter_rect()
+        rect_passagem = obter_rect_passagem_porta()
+        sobreposicao = rect_jogador.clip(rect_passagem)
+        dentro_da_largura = (
+            rect_jogador.left >= rect_passagem.left
+            and rect_jogador.right <= rect_passagem.right
+        )
+        if dentro_da_largura and sobreposicao.height >= 3:
+            porta_estado["fase"] = "fade_out"
+            porta_estado["inicio"] = agora
+        return
+
+    if porta_estado["fase"] == "fade_out":
+        elapsed = agora - porta_estado["inicio"]
+        if elapsed >= 1000:
+            mapa_ativo = 2
+            definir_mapa(mapa_ativo)
+            jogador.x = LARGURA // 2 - 25
+            jogador.y = ALTURA - 120
+            jogador.velocidade_x = 0
+            jogador.velocidade_y = 0
+            porta_estado["fase"] = "fade_in"
+            porta_estado["inicio"] = agora
+            porta_estado["indice"] = 7
+        return
+
+    if porta_estado["fase"] == "fade_in":
+        if agora - porta_estado["inicio"] >= 1000:
+            sprite_jogador = jogador.pegar_sprite()
+            sprite_eren = eren.baixo[0]
+            rect_jogador = sprite_jogador.get_rect(
+                topleft=(jogador.x, jogador.y)
+            )
+            rect_eren = sprite_eren.get_rect()
+            rect_eren.midright = rect_jogador.midleft
+            eren.x, eren.y = rect_eren.topleft
+            eren.direcao = "direita"
+            eren.frame = 0
+            eren.contador_animacao = 0
+            eren.direcao_bloqueada = None
+            eren.tempo_bloqueado = 0
+            porta_estado["fase"] = "done"
+            porta_estado["finalizado"] = True
+        return
+
+
+def desenhar_porta(tela):
+    if mapa_ativo != 1:
+        return
+
+    rect = pygame.Rect(6 * TAMANHO_TILE, 0, 2 * TAMANHO_TILE, TAMANHO_TILE)
+    if porta_estado["fase"] == "idle":
+        distancia = pygame.Vector2(
+            jogador.obter_rect().center
+        ).distance_to(rect.center)
+        sprite = (
+            porta_sprite_selecionada
+            if distancia <= 100
+            else pygame.transform.scale(
+                porta_sprites[0],
+                (2 * TAMANHO_TILE, TAMANHO_TILE)
+            )
+        )
+    else:
+        sprite = pygame.transform.scale(
+            porta_sprites[porta_estado["indice"]],
+            (2 * TAMANHO_TILE, TAMANHO_TILE)
+        )
+    tela.blit(sprite, rect)
+
+
+def desenhar_papel_final(tela):
+    if mapa_ativo != 2:
+        return
+
+    if not papel_final_coletado:
+        tela.blit(papel_final, rect_papel_final)
+
+    if botao_estado["animando"]:
+        indice = min(
+            2,
+            (pygame.time.get_ticks() - botao_estado["inicio"]) // 400
+        )
+        botao = botao_frames[indice]
+    elif indicador_interacao.alvo == "botao":
+        botao = botao_selecionado
+    else:
+        botao = botao_normal
+    tela.blit(botao, rect_botao_final)
+
+
+def desenhar_transicao(tela):
+    fase = porta_estado["fase"]
+    if fase not in ("fade_out", "fade_in"):
+        return
+
+    progresso = min(1.0, (pygame.time.get_ticks() -
+                    porta_estado["inicio"]) / 1000)
+    alpha = int(255 * (progresso if fase == "fade_out" else 1 - progresso))
+    superficie_transicao.fill((0, 0, 0))
+    superficie_transicao.set_alpha(alpha)
+    tela.blit(superficie_transicao, (0, 0))
 
 
 # ==========================================
@@ -416,6 +655,31 @@ arma = pygame.transform.scale(
         arma_base.get_height() * 4
     )
 )
+arma_sprites_direcionais = {
+    direcao: pygame.transform.scale(
+        pygame.image.load(f"assets/arma/{arquivo}.png").convert_alpha(),
+        (28, 28)
+    )
+    for direcao, arquivo in {
+        (0, 1): "B",
+        (1, 0): "D",
+        (1, 1): "DB",
+        (1, -1): "DC",
+        (-1, 0): "E",
+        (-1, 1): "EB",
+        (-1, -1): "EC"
+    }.items()
+}
+ARMA_OFFSETS_MAO = {
+    (0, 1): (-13, 20),
+    (1, 0): (23, 13),
+    (1, 1): (20, 9),
+    (1, -1): (15, 5),
+    (-1, 0): (-23, 13),
+    (-1, 1): (-20, 9),
+    (-1, -1): (-15, 5)
+}
+arma_sprite_na_mao = arma_sprites_direcionais[(0, 1)]
 arma_rect = arma.get_rect(
     center=(
         LARGURA // 2,
@@ -427,7 +691,7 @@ arma_coletada = False
 
 
 def atualizar_arma():
-    global arma_angulo
+    global arma_angulo, arma_sprite_na_mao
 
     if arma_coletada:
         sprite_jogador = jogador.pegar_sprite()
@@ -438,22 +702,17 @@ def atualizar_arma():
         direcao = jogador.direcao_mira.copy()
         if direcao.length_squared() == 0:
             direcao = pygame.Vector2(0, 1)
-        direcao = direcao.normalize()
+        chave_direcao = (
+            int(direcao.x > 0) - int(direcao.x < 0),
+            int(direcao.y > 0) - int(direcao.y < 0)
+        )
+        if chave_direcao in arma_sprites_direcionais:
+            arma_sprite_na_mao = arma_sprites_direcionais[chave_direcao]
+        else:
+            arma_sprite_na_mao = None
 
-        # O sprite da arma foi desenhado apontando para a direita.
-        # Então o ângulo deve seguir a convenção do sprite:
-        # cima=0°, cima-direita=45°, direita=90°, baixo-direita=135°,
-        # baixo=180°, esquerda-baixo=-135°, esquerda=-90°, esquerda-cima=-45°.
-        # Quando a mira vira para a esquerda, o sprite precisa ser espelhado
-        # para manter a orientação real da arma.
-        arma_angulo = math.degrees(math.atan2(direcao.x, -direcao.y))
-
-        offset_x = 10 if direcao.x > 0 else -10 if direcao.x < 0 else 0
-        offset_y = 0 if direcao.y >= 0 else 14
-
-        deslocamento = direcao * (sprite_jogador.get_width() * 0.45)
-        arma_rect.center = centro + deslocamento + \
-            pygame.Vector2(offset_x, offset_y)
+        offset_x, offset_y = ARMA_OFFSETS_MAO.get(chave_direcao, (0, 0))
+        arma_rect.center = centro + pygame.Vector2(offset_x, offset_y)
         return
 
     tempo = pygame.time.get_ticks() / 1000
@@ -534,6 +793,56 @@ caixa_dialogo.iniciar(
 )
 
 
+def obter_alvo_interacao():
+    if (
+        interface.morta
+        or not caixa_dialogo.pode_mover()
+        or gerenciador_bosses.documento_ativo
+        or botao_estado["animando"]
+        or porta_estado["fase"] in ("fade_out", "fade_in", "done")
+    ):
+        return None
+
+    centro_jogador = pygame.Vector2(jogador.obter_rect().center)
+    alvos = []
+
+    if mapa_ativo == 1 and jogador.tem_chave and porta_estado["fase"] == "idle":
+        centro_porta = pygame.Vector2(obter_rect_porta().center)
+        alvos.append(("porta", centro_porta))
+
+    if not arma_coletada:
+        alvos.append(("arma", pygame.Vector2(arma_rect.center)))
+
+    if mapa_ativo == 2 and papel_final_coletado:
+        alvos.append(("botao", pygame.Vector2(rect_botao_final.center)))
+
+    alvos_proximos = [
+        (centro_jogador.distance_to(centro), nome)
+        for nome, centro in alvos
+        if centro_jogador.distance_to(centro) <= 100
+    ]
+    if not alvos_proximos:
+        return None
+
+    return min(alvos_proximos)[1]
+
+
+def interagir_com_alvo():
+    global arma_coletada
+
+    alvo = obter_alvo_interacao()
+    if alvo == "porta":
+        porta_estado["fase"] = "abrindo"
+        porta_estado["inicio"] = pygame.time.get_ticks()
+        porta_estado["indice"] = 0
+    elif alvo == "arma":
+        arma_coletada = True
+        gerenciador_bosses.iniciar()
+    elif alvo == "botao":
+        botao_estado["animando"] = True
+        botao_estado["inicio"] = pygame.time.get_ticks()
+
+
 # ==========================================
 # LOOP PRINCIPAL
 # ==========================================
@@ -542,7 +851,6 @@ rodando = True
 
 
 while rodando:
-
     # ======================================
     # EVENTOS
     # ======================================
@@ -584,6 +892,20 @@ while rodando:
                 evento
             )
 
+            if evento.key == pygame.K_e:
+                interagir_com_alvo()
+
+    if not rodando:
+        break
+
+    if (
+        botao_estado["animando"]
+        and pygame.time.get_ticks() - botao_estado["inicio"] >= 1200
+    ):
+        mostrar_final(tela)
+        rodando = False
+        break
+
     # ======================================
     # ATUALIZAR CAIXA DE DIÁLOGO
     # ======================================
@@ -595,12 +917,19 @@ while rodando:
     # ======================================
 
     atualizar_arma()
+    if not interface.morta:
+        atualizar_porta()
 
     # ======================================
     # ATUALIZAR JOGO
     # ======================================
 
-    if not interface.morta and caixa_dialogo.pode_mover():
+    if (
+        not interface.morta
+        and caixa_dialogo.pode_mover()
+        and porta_estado["fase"] not in ("fade_out", "fade_in")
+        and not botao_estado["animando"]
+    ):
 
         gerenciador_bosses.atualizar(interface)
         gerenciador_bosses.atualizar_documentos(jogador)
@@ -611,6 +940,14 @@ while rodando:
             )
             if identificador_dialogo is not None:
                 caixa_dialogo.iniciar_boss(identificador_dialogo)
+            elif (
+                gerenciador_bosses.boss is not None
+                and not caixa_dialogo.ativo
+                and gerenciador_bosses.boss.animacao_entrada_ativa
+                and not gerenciador_bosses.boss.entrada_iniciada
+                and gerenciador_bosses.boss.y < 0
+            ):
+                gerenciador_bosses.iniciar_entrada_boss_ativo()
 
             # ==================================
             # ATUALIZAR JOGADOR
@@ -619,11 +956,14 @@ while rodando:
             jogador.atualizar()
 
             if (
-                not arma_coletada
-                and jogador.obter_rect().colliderect(arma_rect)
+                mapa_ativo == 2
+                and not papel_final_coletado
+                and jogador.obter_rect().colliderect(rect_papel_final)
             ):
-                arma_coletada = True
-                gerenciador_bosses.iniciar()
+                papel_final_coletado = True
+                gerenciador_bosses.iniciar_documento_final(
+                    texto_papel_final
+                )
 
             coracao.ativo = jogador.usando_coracao
 
@@ -638,6 +978,8 @@ while rodando:
             # ==================================
 
             coracao.atualizar()
+
+            indicador_interacao.atualizar(obter_alvo_interacao())
 
     interface.atualizar_particulas()
 
@@ -670,6 +1012,7 @@ while rodando:
             tela_jogo,
             chao
         )
+        desenhar_papel_final(tela_jogo)
 
         bosses_ativos = gerenciador_bosses.obter_bosses()
         personagens = [
@@ -692,12 +1035,28 @@ while rodando:
             parede
         )
 
+        desenhar_porta(tela_jogo)
+
         for boss in bosses_ativos:
             boss.desenhar_ataques(tela_jogo)
 
         gerenciador_bosses.desenhar_balas(
             tela_jogo
         )
+
+        indicador_interacao.desenhar(tela_jogo, jogador)
+
+        arma_atras_personagem = (
+            arma_coletada
+            and arma_sprite_na_mao is not None
+            and jogador.direcao_mira.x != 0
+            and jogador.direcao_mira.y < 0
+        )
+        if arma_atras_personagem:
+            rect_arma = arma_sprite_na_mao.get_rect(
+                center=arma_rect.center
+            )
+            tela_jogo.blit(arma_sprite_na_mao, rect_arma)
 
         for _, personagem in personagens:
             if (
@@ -740,15 +1099,9 @@ while rodando:
             sprite_arma = pygame.transform.rotate(arma, arma_angulo - 90)
             rect_arma = sprite_arma.get_rect(center=arma_rect.center)
             tela_jogo.blit(sprite_arma, rect_arma)
-        else:
-            sprite_base = arma
-            if jogador.direcao_mira.x < 0:
-                sprite_base = pygame.transform.flip(arma, True, False)
-
-            sprite_arma = pygame.transform.rotate(
-                sprite_base, arma_angulo - 90)
-            rect_arma = sprite_arma.get_rect(center=arma_rect.center)
-            tela_jogo.blit(sprite_arma, rect_arma)
+        elif arma_sprite_na_mao is not None and not arma_atras_personagem:
+            rect_arma = arma_sprite_na_mao.get_rect(center=arma_rect.center)
+            tela_jogo.blit(arma_sprite_na_mao, rect_arma)
 
         interface.desenhar_gore(
             tela_jogo
@@ -790,6 +1143,8 @@ while rodando:
         )
 
     gerenciador_bosses.desenhar_documentos(tela_jogo)
+
+    desenhar_transicao(tela_jogo)
 
     # ======================================
     # APRESENTAR TELA

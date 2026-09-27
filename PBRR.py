@@ -19,7 +19,6 @@ DESLOCAMENTO_HITBOX_X = 4
 TEMPO_MOVIMENTO_ALEATORIO = 60
 TEMPO_PERSEGUINDO = 120
 INTERVALO_ATAQUE = 90
-ALCANCE_ATAQUE = 320
 VELOCIDADE_ATAQUE = 7
 
 
@@ -176,6 +175,7 @@ class PBRR:
         self.animacao_boss6 = None
         self.animacao_entrada_ativa = True
         self.entrando = False
+        self.entrada_iniciada = False
         self.entrada_origem_y = y
         self.entrada_destino_y = y
         self.entrada_inicio_ms = 0
@@ -241,6 +241,7 @@ class PBRR:
     def iniciar_entrada(self, destino_y=None):
         if not self.animacao_entrada_ativa:
             self.entrando = False
+            self.entrada_iniciada = False
             self.entrada_alpha = 255
             if destino_y is not None:
                 self.y = destino_y
@@ -249,10 +250,14 @@ class PBRR:
         if destino_y is None:
             destino_y = self.y
 
+        if self.entrada_iniciada and self.entrando:
+            return
+
         self.entrada_origem_y = self.y
         self.entrada_destino_y = destino_y
         self.entrada_inicio_ms = pygame.time.get_ticks()
         self.entrada_alpha = 0
+        self.entrada_iniciada = True
         self.entrando = True
 
     def obter_alpha_entrada(self):
@@ -597,6 +602,7 @@ class PBRR:
         self.ataques.append({
             "posicao": origem,
             "direcao": direcao_norm,
+            "disparado_ms": pygame.time.get_ticks(),
             "acertou": False,
             "tipo": tipo,
             "dano": dano,
@@ -617,6 +623,7 @@ class PBRR:
             self.ataques.append({
                 "posicao": origem.copy() + direcao * 12,
                 "direcao": direcao,
+                "disparado_ms": pygame.time.get_ticks(),
                 "acertou": False,
                 "tipo": "ataque2",
                 "dano": 1,
@@ -634,6 +641,7 @@ class PBRR:
             self.ataques.append({
                 "posicao": origem.copy() + direcao * 12,
                 "direcao": direcao,
+                "disparado_ms": pygame.time.get_ticks(),
                 "acertou": False,
                 "tipo": "ataque2",
                 "dano": 1,
@@ -652,6 +660,7 @@ class PBRR:
             self.ataques.append({
                 "posicao": origem.copy(),
                 "direcao": direcao,
+                "disparado_ms": pygame.time.get_ticks(),
                 "acertou": False,
                 "tipo": "ataque4",
                 "dano": 1,
@@ -742,8 +751,7 @@ class PBRR:
         )
         distancia_x = alvo_rect.centerx - sprite_rect.centerx
         distancia_y = alvo_rect.centery - sprite_rect.centery
-        distancia = math.hypot(distancia_x, distancia_y)
-        if distancia > ALCANCE_ATAQUE or self.tempo_ataque > 0:
+        if self.tempo_ataque > 0:
             return
 
         direcao = pygame.Vector2(distancia_x, distancia_y)
@@ -755,6 +763,7 @@ class PBRR:
         self.ataques.append({
             "posicao": origem,
             "direcao": direcao,
+            "disparado_ms": pygame.time.get_ticks(),
             "acertou": False,
             "tipo": "normal",
             "dano": 1,
@@ -771,8 +780,7 @@ class PBRR:
         )
         distancia_x = alvo_rect.centerx - sprite_rect.centerx
         distancia_y = alvo_rect.centery - sprite_rect.centery
-        distancia = math.hypot(distancia_x, distancia_y)
-        if distancia > ALCANCE_ATAQUE or self.tempo_ataque > 0:
+        if self.tempo_ataque > 0:
             return
 
         direcao = pygame.Vector2(distancia_x, distancia_y)
@@ -784,6 +792,7 @@ class PBRR:
         self.ataques.append({
             "posicao": origem,
             "direcao": direcao,
+            "disparado_ms": pygame.time.get_ticks(),
             "acertou": False,
             "tipo": "ataque3",
             "dano": 1,
@@ -943,6 +952,7 @@ class PBRR:
                     "direcao": pygame.Vector2(
                         math.cos(angulo), math.sin(angulo)
                     ),
+                    "disparado_ms": agora,
                     "acertou": False,
                     "tipo": "ataque6",
                     "dano": 1,
@@ -998,6 +1008,7 @@ class PBRR:
             self.ataques.append({
                 "posicao": origem,
                 "direcao": direcao,
+                "disparado_ms": agora,
                 "acertou": False
             })
 
@@ -1158,7 +1169,14 @@ class PBRR:
                 (ataque_rect.left, ataque_rect.bottom - 1),
                 (ataque_rect.right - 1, ataque_rect.bottom - 1)
             ]
-            if any(eh_parede(x, y) for x, y in pontos_ataque):
+            disparado_ms = ataque.setdefault(
+                "disparado_ms",
+                pygame.time.get_ticks()
+            )
+            if (
+                pygame.time.get_ticks() - disparado_ms >= 200
+                and any(eh_parede(x, y) for x, y in pontos_ataque)
+            ):
                 if ataque.get("tipo") == "ataque3":
                     self._explodir_ataque_3(ataque)
                 # os projéteis "ataque2" gerados pela explosão não podem

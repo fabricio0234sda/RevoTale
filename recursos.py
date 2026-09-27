@@ -47,6 +47,29 @@ def carregar_parede():
 
 
 # ==========================================
+# CARREGAR PORTA
+# ==========================================
+
+def carregar_porta():
+
+    sprites = []
+    for indice in range(8):
+        sprite = pygame.image.load(
+            f"assets/porta/porta{indice}.png"
+        ).convert_alpha()
+        sprite = pygame.transform.scale(
+            sprite,
+            (
+                sprite.get_width() * ESCALA,
+                sprite.get_height() * ESCALA
+            )
+        )
+        sprites.append(sprite)
+
+    return sprites
+
+
+# ==========================================
 # CARREGAR SPRITES DO JOGADOR
 # ==========================================
 

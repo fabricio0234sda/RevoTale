@@ -2,9 +2,9 @@ import math
 
 import pygame
 
-from config import TAMANHO_TILE
+import mapa
 
-from mapa import MAPA_PAREDE
+from config import TAMANHO_TILE
 
 
 # ==========================================
@@ -12,6 +12,8 @@ from mapa import MAPA_PAREDE
 # ==========================================
 
 def eh_parede(px, py):
+
+    mapa_parede = mapa.MAPA_PAREDE
 
     coluna = int(
         px // TAMANHO_TILE
@@ -28,20 +30,20 @@ def eh_parede(px, py):
     if linha < 0:
         return True
 
-    if linha >= len(MAPA_PAREDE):
+    if linha >= len(mapa_parede):
         return True
 
     if coluna < 0:
         return True
 
-    if coluna >= len(MAPA_PAREDE[linha]):
+    if coluna >= len(mapa_parede[linha]):
         return True
 
     # ======================================
     # VERIFICAR TILE
     # ======================================
 
-    if MAPA_PAREDE[linha][coluna] > 0:
+    if mapa_parede[linha][coluna] > 0:
 
         return True
 
@@ -115,6 +117,15 @@ def pode_andar(
         limite_direito - limite_esquerdo,
         limite_inferior - limite_superior
     )
+    mapa_parede = mapa.MAPA_PAREDE
+
+    if (
+        hitbox.left < 0
+        or hitbox.top < 0
+        or hitbox.right > len(mapa_parede[0]) * TAMANHO_TILE
+        or hitbox.bottom > len(mapa_parede) * TAMANHO_TILE
+    ):
+        return False
 
     # ======================================
     # VERIFICAR SOBREPOSIÇÃO COM AS PAREDES
@@ -126,7 +137,7 @@ def pode_andar(
     )
 
     ultima_coluna = min(
-        len(MAPA_PAREDE[0]) - 1,
+        len(mapa_parede[0]) - 1,
         hitbox.right // TAMANHO_TILE
     )
 
@@ -136,7 +147,7 @@ def pode_andar(
     )
 
     ultima_linha = min(
-        len(MAPA_PAREDE) - 1,
+        len(mapa_parede) - 1,
         hitbox.bottom // TAMANHO_TILE
     )
 
@@ -150,7 +161,7 @@ def pode_andar(
             ultima_coluna + 1
         ):
 
-            if MAPA_PAREDE[linha][coluna] <= 0:
+            if mapa_parede[linha][coluna] <= 0:
                 continue
 
             parede = pygame.Rect(
@@ -161,6 +172,16 @@ def pode_andar(
             )
 
             if hitbox.colliderect(parede):
+                if (
+                    mapa.MAPA_ATUAL == 1
+                    and mapa.PORTA_ABERTA
+                    and linha == 0
+                    and coluna in (6, 7)
+                    and mapa.obter_rect_passagem_porta().contains(
+                        hitbox.clip(parede)
+                    )
+                ):
+                    continue
                 return False
 
     return True

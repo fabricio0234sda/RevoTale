@@ -160,8 +160,9 @@ superficie_transicao = pygame.Surface((LARGURA, ALTURA))
 CENA_GAMEOVER_ATRASO_MS = 3000
 CENA_GAMEOVER_FADE_MS = 500
 BOTAO_DURACAO_ANIMACAO_MS = 1200
-BOTAO_FADE_PRETO_MS = 2000
 CENA6_FADE_MS = 500
+CENA6_DURACAO_MS = 10000
+BOTAO_FADE_PRETO_MS = 2000
 REINICIAR_TECLAS = (
     pygame.K_LEFT,
     pygame.K_RIGHT,
@@ -856,7 +857,7 @@ def obter_alvo_interacao():
         or not caixa_dialogo.pode_mover()
         or gerenciador_bosses.documento_ativo
         or botao_estado["animando"]
-        or porta_estado["fase"] in ("fade_out", "fade_in", "done")
+        or porta_estado["fase"] in ("fade_out", "fade_in")
     ):
         return None
 
@@ -870,7 +871,7 @@ def obter_alvo_interacao():
     if not arma_coletada:
         alvos.append(("arma", pygame.Vector2(arma_rect.center)))
 
-    if mapa_ativo == 2 and papel_final_coletado:
+    if mapa_ativo == 2:
         alvos.append(("botao", pygame.Vector2(rect_botao_final.center)))
 
     alvos_proximos = [
@@ -967,13 +968,20 @@ while rodando:
         botao_estado["fase"] == "animacao"
         and agora - botao_estado["inicio"] >= BOTAO_DURACAO_ANIMACAO_MS
     ):
+        botao_estado["fase"] = "cena6"
+        botao_estado["inicio"] = agora
+    elif (
+        botao_estado["fase"] == "cena6"
+        and agora - botao_estado["inicio"]
+        >= CENA6_FADE_MS + CENA6_DURACAO_MS
+    ):
         botao_estado["fase"] = "fade_preto"
         botao_estado["inicio"] = agora
     elif (
         botao_estado["fase"] == "fade_preto"
         and agora - botao_estado["inicio"] >= BOTAO_FADE_PRETO_MS
     ):
-        botao_estado["fase"] = "cena6"
+        botao_estado["fase"] = "tela_preta"
         botao_estado["inicio"] = agora
 
     # ======================================
@@ -1298,7 +1306,17 @@ while rodando:
 
     desenhar_transicao(tela_jogo)
 
-    if botao_estado["fase"] == "fade_preto":
+    if botao_estado["fase"] == "cena6":
+        progresso_cena6 = min(
+            1.0,
+            (pygame.time.get_ticks() - botao_estado["inicio"])
+            / CENA6_FADE_MS
+        )
+        imagem_cena6 = sprite_cena6.copy()
+        imagem_cena6.set_alpha(int(progresso_cena6 * 255))
+        tela_jogo.blit(imagem_cena6, (0, 0))
+    elif botao_estado["fase"] == "fade_preto":
+        tela_jogo.blit(sprite_cena6, (0, 0))
         progresso_preto = min(
             1.0,
             (pygame.time.get_ticks() - botao_estado["inicio"])
@@ -1307,16 +1325,8 @@ while rodando:
         superficie_transicao.fill((0, 0, 0))
         superficie_transicao.set_alpha(int(progresso_preto * 255))
         tela_jogo.blit(superficie_transicao, (0, 0))
-    elif botao_estado["fase"] == "cena6":
-        progresso_cena6 = min(
-            1.0,
-            (pygame.time.get_ticks() - botao_estado["inicio"])
-            / CENA6_FADE_MS
-        )
+    elif botao_estado["fase"] == "tela_preta":
         tela_jogo.fill((0, 0, 0))
-        imagem_cena6 = sprite_cena6.copy()
-        imagem_cena6.set_alpha(int(progresso_cena6 * 255))
-        tela_jogo.blit(imagem_cena6, (0, 0))
 
     # ======================================
     # APRESENTAR TELA

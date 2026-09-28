@@ -2,7 +2,7 @@ import math
 import random
 
 import pygame
-from config import TAMANHO_TILE
+from config import ALTURA, LARGURA, TAMANHO_TILE
 from colisao import eh_parede, pode_andar
 
 
@@ -61,6 +61,8 @@ class PBRR:
         self.costas = costas
         self.esquerda = esquerda
         self.direita = direita
+        self.sprites_boss5 = None
+        self.sprite_boss5_atual = None
 
         # =================================================
         # POSIÇÃO
@@ -142,34 +144,28 @@ class PBRR:
             "assets/ataques/ataque4.png"
         ).convert_alpha()
         self.sprite_ataque_5 = pygame.image.load(
-            "assets/ataques/ataque5.png"
+            "assets/ataques/RainhaP.png"
         ).convert_alpha()
         self.sprite_ataque_5 = pygame.transform.scale(
             self.sprite_ataque_5,
             (
-                self.sprite_ataque_5.get_width() * 3,
-                self.sprite_ataque_5.get_height() * 3
+                self.sprite_ataque_5.get_width() * 2,
+                self.sprite_ataque_5.get_height() * 2
             )
         )
         self.sprite_ataque_6 = pygame.image.load(
             "assets/ataques/ataque6.png"
         ).convert_alpha()
-        self.marcataque = [
-            pygame.transform.scale(
-                pygame.image.load(
-                    f"assets/ataques/marcataque/marcaataque{i:02d}.png"
-                ).convert_alpha(),
-                (
-                    pygame.image.load(
-                        f"assets/ataques/marcataque/marcaataque{i:02d}.png"
-                    ).convert_alpha().get_width() * 2,
-                    pygame.image.load(
-                        f"assets/ataques/marcataque/marcaataque{i:02d}.png"
-                    ).convert_alpha().get_height() * 2
-                )
+        sprite_marcataque = pygame.image.load(
+            "assets/ataques/CMP.png"
+        ).convert_alpha()
+        self.marcataque = pygame.transform.scale(
+            sprite_marcataque,
+            (
+                sprite_marcataque.get_width() * 2,
+                sprite_marcataque.get_height() * 2
             )
-            for i in range(10)
-        ]
+        )
         self.ataques = []
         self.tempo_ataque = 0
         self.animacao_boss6 = None
@@ -179,8 +175,23 @@ class PBRR:
         self.entrada_origem_y = y
         self.entrada_destino_y = y
         self.entrada_inicio_ms = 0
-        self.entrada_duracao_ms = 500
+        self.entrada_duracao_ms = 1000
         self.entrada_alpha = 255
+
+    def configurar_sprites_boss5(
+        self,
+        sprites_parado,
+        sprite_esquerda,
+        sprite_direita,
+        sprites_ataque
+    ):
+        self.sprites_boss5 = {
+            "parado": sprites_parado,
+            "esquerda": sprite_esquerda,
+            "direita": sprite_direita,
+            "ataque": sprites_ataque
+        }
+        self.sprite_boss5_atual = sprites_parado[0]
 
     def configurar_animacao_boss6(
         self,
@@ -340,6 +351,9 @@ class PBRR:
             if self.animacao_entrada_ativa:
                 return self._pegar_sprite_boss6()
             return self._pegar_sprite_boss6()
+
+        if self.sprite_boss5_atual is not None:
+            return self.sprite_boss5_atual
 
         # Escolher lista de sprites baseado na direção
         if self.direcao == "costas":
@@ -568,7 +582,7 @@ class PBRR:
                 "proximo_ataque_especial_ms": pygame.time.get_ticks() + 5000,
                 "especial_ativo": False
             }
-        elif padrao == "boss6":
+        elif padrao in ("boss6", "boss7"):
             agora = pygame.time.get_ticks()
             self.estado_ataque_boss6 = {
                 "fase": "circular",
@@ -716,8 +730,7 @@ class PBRR:
             "acertou": False,
             "tipo": "marca_boss4",
             "dano": 0,
-            "sprite": self.marcataque[0],
-            "sprite_seq": self.marcataque,
+            "sprite": self.marcataque,
             "inicio_ms": pygame.time.get_ticks(),
             "alvo_posicao": destino.copy(),
             "frame_index": 0,
@@ -899,11 +912,16 @@ class PBRR:
             return pygame.Vector2(0, 1)
         return direcao.normalize()
 
-    def _criar_ataque6_chuva(self):
-        largura = self.pegar_sprite().get_width()
-        x = random.randint(0, max(0, 640 - largura))
+    def _criar_ataque6_chuva(self, alvo):
+        metade_largura = self.sprite_ataque_6.get_width() / 2
+        centro_jogador_x = alvo.obter_rect_dano().centerx
+        x = round(centro_jogador_x + random.randint(-100, 100))
+        x = max(
+            round(metade_largura),
+            min(round(LARGURA - metade_largura), x)
+        )
         inicio = pygame.Vector2(x, -self.sprite_ataque_6.get_height())
-        destino = pygame.Vector2(x, 640 + self.sprite_ataque_6.get_height())
+        destino = pygame.Vector2(x, ALTURA + self.sprite_ataque_6.get_height())
         self.ataques.append({
             "posicao": inicio.copy(),
             "inicio": inicio,
@@ -920,9 +938,12 @@ class PBRR:
         agora = pygame.time.get_ticks()
         estado = self.estado_ataque_boss6
 
-        if agora >= estado["proxima_chuva_ms"]:
+        if (
+            self.padrao_ataque == "boss7"
+            and agora >= estado["proxima_chuva_ms"]
+        ):
             for _ in range(3):
-                self._criar_ataque6_chuva()
+                self._criar_ataque6_chuva(alvo)
             estado["proxima_chuva_ms"] = agora + random.randint(200, 300)
 
         if estado["fase"] == "circular":
@@ -1069,7 +1090,6 @@ class PBRR:
                     self.estado_ataque_boss4["especial_ativo"] = False
                     continue
 
-                ataque["frame_index"] = max(0, min(9, indice))
                 ataque["alpha"] = max(0, min(255, alpha))
                 novos_ataques.append(ataque)
                 continue
@@ -1163,6 +1183,14 @@ class PBRR:
                     )
                 continue
 
+            if (
+                ataque_rect.left <= 0
+                or ataque_rect.right >= LARGURA
+                or ataque_rect.top <= 0
+                or ataque_rect.bottom >= ALTURA
+            ):
+                continue
+
             pontos_ataque = [
                 (ataque_rect.left, ataque_rect.top),
                 (ataque_rect.right - 1, ataque_rect.top),
@@ -1175,17 +1203,14 @@ class PBRR:
             )
             if (
                 pygame.time.get_ticks() - disparado_ms >= 200
+                and self.padrao_ataque in ("boss3", "boss5")
+                and ataque.get("tipo") == "ataque3"
                 and any(eh_parede(x, y) for x, y in pontos_ataque)
             ):
-                if ataque.get("tipo") == "ataque3":
-                    self._explodir_ataque_3(ataque)
-                # os projéteis "ataque2" gerados pela explosão não podem
-                # explodir de novo ao bater na parede, senão gera cascata
-                # infinita e crasha o jogo.
+                self._explodir_ataque_3(ataque)
                 continue
 
-            if ataque_rect.bottom >= 0 and ataque_rect.top <= 640:
-                novos_ataques.append(ataque)
+            novos_ataques.append(ataque)
 
         self.ataques = novos_ataques
 
@@ -1194,10 +1219,11 @@ class PBRR:
             tipo = ataque.get("tipo")
 
             if tipo == "marca_boss4":
-                indice = int(ataque.get("frame_index", 0))
-                sprite_ataque = ataque["sprite_seq"][indice]
-                sprite = sprite_ataque.copy()
+                sprite = ataque["sprite"].copy()
                 sprite.set_alpha(ataque.get("alpha", 255))
+                elapsed = pygame.time.get_ticks() - ataque["inicio_ms"]
+                angulo = (elapsed * 360 / 1500) % 360
+                sprite = pygame.transform.rotate(sprite, angulo)
                 tela.blit(
                     sprite,
                     sprite.get_rect(center=ataque["posicao"])

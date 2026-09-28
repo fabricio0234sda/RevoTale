@@ -28,30 +28,30 @@ VELOCIDADE_DIGITACAO = 30
 DIALOGOS = [
 
     {
-        "autor": "Iren",
+        "autor": "Mateus Valentin",
         "estado": "normal",
-        "fala": "Olá. Finalmente você chegou.",
+        "fala": "Que graça! Cogitei que não despertarias....",
         "podemover": False
     },
 
     {
-        "autor": "Iren",
+        "autor": "Sebastiana Aparecida",
         "estado": "feliz",
-        "fala": "Estava esperando por você!",
+        "fala": "Ai! Sinto minha fronte palpitar.",
         "podemover": False
     },
 
     {
-        "autor": "Iren",
+        "autor": "Mateus Valentin",
         "estado": "triste",
-        "fala": "Mas... precisamos conversar sobre algumas coisas.",
+        "fala": "Acertaram uma coronhada em ti, agora estamos presos nesta sala.",
         "podemover": False
     },
 
     {
-        "autor": "Iren",
+        "autor": "Sebastiana Aparecida",
         "estado": "normal",
-        "fala": "Pode continuar andando enquanto eu estiver falando.",
+        "fala": "Imagino que nos apossarmos daquela conveniente arma próxima a nós seja a melhor decisão...",
         "podemover": True
     }
 
@@ -59,73 +59,17 @@ DIALOGOS = [
 
 
 BOSS_DIALOGOS = {
-    "boss2": [
-        {
-            "autor": "Boss 2",
-            "estado": "normal",
-            "fala": "Você derrotou o primeiro, mas não vai passar por mim.",
-            "podemover": False
-        },
-        {
-            "autor": "PBRR",
-            "estado": "normal",
-            "fala": "Então venha. Eu ainda não terminei esta luta.",
-            "podemover": False
-        }
-    ],
-    "boss3": [
-        {
-            "autor": "Boss 3",
-            "estado": "normal",
-            "fala": "A sua vitória só tornou o caminho mais difícil.",
-            "podemover": False
-        },
-        {
-            "autor": "PBRR",
-            "estado": "normal",
-            "fala": "Cada batalha me trouxe até aqui.",
-            "podemover": False
-        }
-    ],
-    "boss4": [
-        {
-            "autor": "Boss 4",
-            "estado": "normal",
-            "fala": "Este é o fim da sua jornada.",
-            "podemover": False
-        },
-        {
-            "autor": "PBRR",
-            "estado": "normal",
-            "fala": "Enquanto eu puder lutar, a história continua.",
-            "podemover": False
-        }
-    ],
-    "boss5": [
-        {
-            "autor": "Boss 5",
-            "estado": "normal",
-            "fala": "Dois corpos, uma última batalha.",
-            "podemover": False
-        },
-        {
-            "autor": "PBRR",
-            "estado": "normal",
-            "fala": "Então enfrentarei os dois ao mesmo tempo.",
-            "podemover": False
-        }
-    ],
     "boss6": [
         {
-            "autor": "Boss 6",
+            "autor": "Vilão comicamente trajado",
             "estado": "normal",
-            "fala": "A queda termina aqui.",
+            "fala": "Sua hora chegou...",
             "podemover": False
         },
         {
-            "autor": "PBRR",
+            "autor": "Vilão comicamente trajado",
             "estado": "normal",
-            "fala": "Então eu vou encerrar esta batalha.",
+            "fala": "Prepare-se para morrer!",
             "podemover": False
         }
     ]

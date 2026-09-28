@@ -1,3 +1,4 @@
+import math
 import os
 import random
 
@@ -37,7 +38,7 @@ ANIMACAO_ENTRADA_BOSS = {
 BOSS_DADOS = {
     "pbrr": {
         "nome": "PBRR",
-        "vida": 20,
+        "vida": 25,
         "dano": 1,
         "documento": "assets/Documentos/Documento1.png",
         "texto_documento": "Petulante e ignorante, ainda cogita ser capaz de dar continuidade à trama de seus devaneios? \nSabes que só trará mais sofrimento a ti e ao seu vassalo. \nVossa mercê não possuis o necessário para suportar tamanha desgraça.",
@@ -45,7 +46,7 @@ BOSS_DADOS = {
     },
     "boss2": {
         "nome": "Boss 2",
-        "vida": 25,
+        "vida": 35,
         "dano": 1,
         "documento": "assets/Documentos/Documento1.png",
         "texto_documento": "Petulante e ignorante, ainda cogita ser capaz de dar continuidade à trama de seus devaneios? \nSabes que só trará mais sofrimento a ti e ao seu vassalo. \nVossa mercê não possuis o necessário para suportar tamanha desgraça.",
@@ -53,42 +54,42 @@ BOSS_DADOS = {
     },
     "boss3": {
         "nome": "Boss 3",
-        "vida": 30,
-        "dano": 2,
+        "vida": 40,
+        "dano": 1,
         "documento": "assets/Documentos/Documento1.png",
         "texto_documento": "Monstro! Tendes noção que não passas disso...\nAmiudadamente continuas a torturar sua pessoa e aquele que vos acompanha.\nContudo, não permitirei que prossigas!",
-        "drop_papel": False
+        "drop_papel": True
     },
     "boss4": {
         "nome": "Boss 4",
-        "vida": 40,
-        "dano": 2,
+        "vida": 50,
+        "dano": 1,
         "documento": "assets/Documentos/Documento1.png",
         "texto_documento": "Indescritível! Indescritivel é o ódio que sinto por sua pessoa!\nJá que não foram suficientes as criaturas minhas, trarei fim a este pequeno contratempo com a mão de quem a vós delata.\nPrepare-se para experimentar o verdadeiro temor... ",
-        "drop_papel": False
+        "drop_papel": True
     },
     "boss5": {
         "nome": "Boss 5",
-        "vida": 70,
-        "dano": 2,
+        "vida": 80,
+        "dano": 1,
         "documento": "assets/Documentos/Documento1.png",
         "texto_documento": "Boss 5\nO confronto cresce.",
-        "drop_papel": True
+        "drop_papel": False
     },
     "boss6": {
         "nome": "Boss 6",
         "vida": 50,
-        "dano": 3,
+        "dano": 1,
         "documento": "assets/Documentos/Documento1.png",
         "texto_documento": "Boss 6\nA ameaça se revela.",
-        "drop_papel": True
+        "drop_papel": False
     },
     "boss7": {
         "nome": "Boss 7",
-        "vida": 60,
-        "dano": 3,
+        "vida": 70,
+        "dano": 1,
         "documento": "assets/Documentos/Documento1.png",
-        "texto_documento": "Boss 7\nA chave do final.",
+        "texto_documento": "Cuidado com o botão da próxima sala, ele pode ser perigoso...",
         "drop_papel": True
     }
 }
@@ -96,6 +97,25 @@ BOSS_DADOS = {
 
 VELOCIDADE_BALA = 10
 INTERVALO_DISPARO = 250
+DURACAO_QUEDA_BOSS_MS = 500
+TEMPO_DESAPARECER_BOSS_MS = 3000
+BOSS5_QUANTIDADE_FILEIRAS = 5
+BOSS5_INTERVALO_ATAQUE_MS = 350
+BOSS5_VELOCIDADE_ATAQUE = 7
+BOSS5_VELOCIDADE_ORBITA = 0.7
+BOSS5_AMPLITUDE_X = 210
+BOSS5_AMPLITUDE_Y = 80
+BOSS5_DURACAO_PARADO_MS = 750
+BOSS5_ATRASO_ATAQUE_ABERTURA_MS = 1200
+BOSS5_DURACAO_FORMACAO_MS = 900
+BOSS5_VELOCIDADE_ATAQUE7 = 5
+BOSS5_QUANTIDADE_ESTILHACOS = 5
+BOSS5_PASSO_FUSAO_PX = 1
+BOSS5_FLASH_DURACAO_MS = 2000
+BOSS5_INTERVALO_PEAO_MS = 2000
+BOSS5_PEAO_FADE_IN_MS = 500
+BOSS5_PEAO_SAIDA_MS = 300
+BOSS5_PEAO_FADE_OUT_MS = 400
 
 
 class GerenciadorBosses:
@@ -106,6 +126,7 @@ class GerenciadorBosses:
         self.indice = -1
         self.boss = None
         self.bosses_ativos = []
+        self.bosses_visiveis = []
         self.identificador = None
         self.dados = None
         self.vida = 0
@@ -114,6 +135,30 @@ class GerenciadorBosses:
         self.mensagem = ""
         self.mensagem_expira = 0
         self.balas = []
+        self.boss5_ataques = []
+        self.boss5_proximo_ataque_ms = 0
+        self.sprite_ataque_boss5 = self.bosses["boss5"].sprite_ataque_2
+        self.sprite_ataque7 = pygame.image.load(
+            "assets/ataques/ataque7.png"
+        ).convert_alpha()
+        self.boss5_orbita_fase = 0.0
+        self.boss5_ultimo_update_ms = None
+        self.boss5_movimento_inicio_ms = None
+        self.boss5_combate_inicio_ms = None
+        self.boss5_ataque_abertura_usado = False
+        self.boss5_ataque_abertura_inicio_ms = 0
+        self.boss5_ataque7 = None
+        self.boss5_proxima_invocacao_ms = 0
+        self.boss5_invocacao = None
+        self.sprite_tile_boss5 = pygame.transform.scale(
+            pygame.image.load("assets/ataques/CMV.png").convert_alpha(),
+            (TAMANHO_TILE, TAMANHO_TILE)
+        )
+        self.sprite_peao_boss5 = pygame.transform.scale(
+            pygame.image.load("assets/ataques/Peão.png").convert_alpha(),
+            (TAMANHO_TILE, TAMANHO_TILE)
+        )
+        self.boss5_fusao = None
         self.tempo_ultimo_disparo = 0
         self.direcao_disparo = pygame.Vector2(0, 1)
         self.dialogo_pendente = None
@@ -153,9 +198,6 @@ class GerenciadorBosses:
         self.efeito_derrota = None
         self.posicao_ultimo_boss = None
         self._proximo_boss_em_execucao = False
-        self.boss5_vidas = {}
-        self.boss5_vivos = {}
-        self.boss5_drop_fila = []
 
     def iniciar(self):
         if self.iniciado:
@@ -170,27 +212,44 @@ class GerenciadorBosses:
 
         self._proximo_boss_em_execucao = True
         try:
+            self._limpar_ataques()
             self.indice += 1
 
             while self.indice < len(BOSS_ORDEM):
                 identificador = BOSS_ORDEM[self.indice]
-                boss = (
-                    self.bosses.get("boss3")
-                    if identificador == "boss5"
-                    else self.bosses.get(identificador)
-                )
+                boss = self.bosses.get(identificador)
                 dados = BOSS_DADOS.get(identificador)
 
                 if boss is not None and dados is not None:
                     self.identificador = identificador
                     self.boss = boss
-                    self.bosses_ativos = (
-                        [self.bosses["boss3"], self.bosses["boss4"]]
-                        if identificador == "boss5"
-                        else [boss]
-                    )
+                    if identificador == "boss5":
+                        self.bosses_ativos = [
+                            self.bosses["boss3"],
+                            self.bosses["boss4"]
+                        ]
+                        self.bosses_visiveis = [
+                            self.bosses["boss3"],
+                            self.bosses["boss4"]
+                        ]
+                    else:
+                        self.bosses_ativos = [boss]
+                        self.bosses_visiveis = [boss]
+                        if identificador == "boss4":
+                            self.bosses_visiveis.insert(
+                                0,
+                                self.bosses["boss3"]
+                            )
                     self.dados = dados
                     for indice_ativo, boss_ativo in enumerate(self.bosses_ativos):
+                        if identificador == "boss5":
+                            boss_ativo.ia_ativa = False
+                            boss_ativo.animacao_entrada_ativa = False
+                            boss_ativo.entrando = False
+                            boss_ativo.ataques.clear()
+                            continue
+
+                        boss_ativo.efeito_derrota = None
                         boss_ativo.animacao_entrada_ativa = ANIMACAO_ENTRADA_BOSS.get(
                             identificador,
                             True
@@ -208,59 +267,68 @@ class GerenciadorBosses:
                         destino_y = (ALTURA - sprite.get_height()) // 2
 
                         if identificador in ("boss3", "boss4"):
-                            boss_ativo.x = (LARGURA - sprite.get_width()) // 2
+                            offset_x = 100 if identificador == "boss3" else -100
+                            boss_ativo.x = (
+                                LARGURA - sprite.get_width()
+                            ) // 2 + offset_x
                             boss_ativo.y = -sprite.get_height() - 20
                             if not boss_ativo.animacao_entrada_ativa:
                                 boss_ativo.y = destino_y
-                        elif self.posicao_ultimo_boss is not None and identificador not in (
-                            "boss5",
+                        elif identificador == "boss6":
+                            boss_ativo.x = (
+                                LARGURA - sprite.get_width()
+                            ) // 2
+                            boss_ativo.y = -sprite.get_height() - 20
+                            boss_ativo.entrada_origem_y = boss_ativo.y
+                            boss_ativo.entrada_destino_y = destino_y
+                            self.posicao_ultimo_boss = None
+                        elif (
+                            self.posicao_ultimo_boss is not None
+                            and identificador != "boss5"
                         ):
                             boss_ativo.x = self.posicao_ultimo_boss[0]
                             boss_ativo.y = -sprite.get_height() - 20
                             if not boss_ativo.animacao_entrada_ativa:
                                 boss_ativo.y = self.posicao_ultimo_boss[1]
                             self.posicao_ultimo_boss = None
-                        elif identificador == "boss5":
-                            offset_x = -200 if indice_ativo == 0 else 200
-                            boss_ativo.x = (
-                                LARGURA - sprite.get_width()) // 2 + offset_x
-                            boss_ativo.y = -sprite.get_height() - 20
-                            if not boss_ativo.animacao_entrada_ativa:
-                                boss_ativo.y = destino_y
-                            boss_ativo.ia_ativa = False
-                            boss_ativo.movimento_x = 0
-                            boss_ativo.movimento_y = 0
-                            boss_ativo.esta_se_movendo = False
-                            boss_ativo.ataques.clear()
                         else:
                             boss_ativo.x = (LARGURA - sprite.get_width()) // 2
                             boss_ativo.y = -sprite.get_height() - 20
                             if not boss_ativo.animacao_entrada_ativa:
                                 boss_ativo.y = destino_y
 
+                    self.vida = dados["vida"]
+                    self.vida_maxima = self.vida
+
                     if identificador == "boss5":
-                        self.boss5_vidas = {
-                            "boss3": BOSS_DADOS["boss3"]["vida"],
-                            "boss4": BOSS_DADOS["boss4"]["vida"]
-                        }
-                        self.boss5_vivos = {
-                            "boss3": True,
-                            "boss4": True
-                        }
-                        self.vida = sum(self.boss5_vidas.values())
-                        self.vida_maxima = self.vida
-                    else:
-                        self.boss5_vidas = {}
-                        self.boss5_vivos = {}
-                        self.vida = dados["vida"]
-                        self.vida_maxima = self.vida
+                        sprite = self.boss.pegar_sprite()
+                        self.boss.x = (LARGURA - sprite.get_width()) // 2
+                        self.boss.y = (
+                            ALTURA // 2 - 100 - sprite.get_height() // 2
+                        )
+                        self.boss.ia_ativa = False
+                        self.boss.sprite_boss5_atual = (
+                            self.boss.sprites_boss5["parado"][0]
+                        )
+                        self.boss5_orbita_fase = 0.0
+                        self.boss5_ultimo_update_ms = pygame.time.get_ticks()
+                        self.boss5_movimento_inicio_ms = None
+                        self.boss5_combate_inicio_ms = None
+                        self.boss5_ataque_abertura_usado = False
+                        self.boss5_ataque7 = None
+                        self.boss5_proxima_invocacao_ms = (
+                            pygame.time.get_ticks() + BOSS5_INTERVALO_PEAO_MS
+                        )
+                        self.boss5_invocacao = None
+                        self.posicao_ultimo_boss = None
+                        self._iniciar_fusao_boss5()
 
                     if identificador == "boss6":
                         self.boss.iniciar_animacao_boss6()
                         self.boss.configurar_padrao_ataque("boss6")
                     elif identificador == "boss7":
                         self.boss.configurar_padrao_ataque("boss6")
-                    if self.indice > 0:
+                    if self.indice > 0 and identificador != "boss5":
                         self.dialogo_pendente = identificador
                     self.mensagem = (
                         f"Boss {self.indice + 1}/{len(BOSS_ORDEM)}: "
@@ -273,6 +341,7 @@ class GerenciadorBosses:
 
             self.boss = None
             self.bosses_ativos = []
+            self.bosses_visiveis = []
             self.identificador = None
             self.dados = None
             self.finalizado = True
@@ -295,8 +364,124 @@ class GerenciadorBosses:
             destino_y = (ALTURA - sprite.get_height()) // 2
             self.boss.iniciar_entrada(destino_y)
 
+    def _iniciar_fusao_boss5(self):
+        agora = pygame.time.get_ticks()
+        boss3 = self.bosses["boss3"]
+        boss4 = self.bosses["boss4"]
+        sprite3 = self._obter_sprite_derrota(boss3)
+        sprite4 = self._obter_sprite_derrota(boss4)
+        centro3 = pygame.Vector2(
+            boss3.x + sprite3.get_width() / 2,
+            boss3.y + sprite3.get_height() / 2
+        )
+        centro4 = pygame.Vector2(
+            boss4.x + sprite4.get_width() / 2,
+            boss4.y + sprite4.get_height() / 2
+        )
+        self.boss5_fusao = {
+            "fase": "unindo",
+            "inicio": agora,
+            "distancia_inicial": max(1, abs(centro3.x - centro4.x)),
+            "centros_unidos": centro3.distance_to(centro4) <= 0.5
+        }
+
+        for boss, sprite, centro_x in (
+            (boss3, sprite3, centro3.x),
+            (boss4, sprite4, centro4.x)
+        ):
+            boss.efeito_derrota = {
+                "inicio": agora - DURACAO_QUEDA_BOSS_MS,
+                "duracao": BOSS5_FLASH_DURACAO_MS,
+                "duracao_queda": DURACAO_QUEDA_BOSS_MS,
+                "sprite_final": sprite,
+                "brilho": 1.0,
+                "aplicar_brilho": True,
+                "persistir": True,
+                "angulo": 90
+            }
+
+    def _atualizar_fusao_boss5(self):
+        agora = pygame.time.get_ticks()
+        fusao = self.boss5_fusao
+        if fusao["fase"] == "unindo":
+            centros_sprites = []
+            boss3 = self.bosses["boss3"]
+            boss4 = self.bosses["boss4"]
+            sprite3 = boss3.efeito_derrota["sprite_final"]
+            sprite4 = boss4.efeito_derrota["sprite_final"]
+            centro3_x = boss3.x + sprite3.get_width() / 2
+            centro4_x = boss4.x + sprite4.get_width() / 2
+
+            if centro3_x > centro4_x:
+                boss3.x -= BOSS5_PASSO_FUSAO_PX
+                boss4.x += BOSS5_PASSO_FUSAO_PX
+            elif centro3_x < centro4_x:
+                boss3.x += BOSS5_PASSO_FUSAO_PX
+                boss4.x -= BOSS5_PASSO_FUSAO_PX
+
+            for boss in (boss3, boss4):
+                sprite = boss.efeito_derrota["sprite_final"]
+                centros_sprites.append(
+                    pygame.Vector2(
+                        boss.x + sprite.get_width() / 2,
+                        boss.y + sprite.get_height() / 2
+                    )
+                )
+
+            distancia_centros = centros_sprites[0].distance_to(
+                centros_sprites[1]
+            )
+            distancia_x = abs(
+                centros_sprites[0].x - centros_sprites[1].x
+            )
+            progresso = 1 - min(
+                1.0,
+                distancia_x / fusao["distancia_inicial"]
+            )
+            for identificador in ("boss3", "boss4"):
+                self.bosses[identificador].efeito_derrota["brilho"] = (
+                    1 + progresso * 0.6
+                )
+
+            if distancia_centros <= 0.5:
+                fusao["centros_unidos"] = True
+
+            if (
+                not fusao["centros_unidos"]
+                or agora - fusao["inicio"] < BOSS5_FLASH_DURACAO_MS
+            ):
+                return
+
+        self.boss5_fusao = None
+        self.bosses_ativos = [self.boss]
+        self.bosses_visiveis = [self.boss]
+        self.boss.efeito_derrota = None
+        self.boss.sprite_boss5_atual = self.boss.sprites_boss5["parado"][0]
+        self.boss5_orbita_fase = 0.0
+        self.boss5_ultimo_update_ms = agora
+        self.boss5_movimento_inicio_ms = None
+        self.boss5_combate_inicio_ms = None
+        self.boss5_ataque_abertura_usado = False
+        self.boss5_ataque7 = None
+        self.boss5_proxima_invocacao_ms = agora + BOSS5_INTERVALO_PEAO_MS
+        self.boss5_invocacao = None
+        if self.indice > 0:
+            self.dialogo_pendente = "boss5"
+
+    def alpha_flash_boss5(self):
+        if self.boss5_fusao is None:
+            return 0
+
+        elapsed = pygame.time.get_ticks() - self.boss5_fusao["inicio"]
+        progresso = min(1.0, elapsed / BOSS5_FLASH_DURACAO_MS)
+        return int(255 * progresso)
+
     def atualizar(self, interface):
         if not self.iniciado or self.boss is None:
+            return
+
+        if self.boss5_fusao is not None:
+            self._atualizar_fusao_boss5()
             return
 
         if self.efeito_derrota is not None:
@@ -311,17 +496,11 @@ class GerenciadorBosses:
                 boss.atualizar_entrada()
             return
 
-        for boss in self.bosses_ativos:
-            if self.identificador == "boss5":
-                subboss = self._obter_subboss_boss5(boss)
-                if subboss is not None and not self.boss5_vivos.get(subboss, False):
-                    boss.ataques.clear()
-                    boss.ia_ativa = False
-                    boss.movimento_x = 0
-                    boss.movimento_y = 0
-                    boss.esta_se_movendo = False
-                    continue
-            boss.atualizar(self.jogador, interface)
+        if self.identificador == "boss5":
+            self._atualizar_boss5(interface)
+        else:
+            for boss in self.bosses_ativos:
+                boss.atualizar(self.jogador, interface)
         self._atualizar_balas()
 
         teclas = pygame.key.get_pressed()
@@ -357,96 +536,398 @@ class GerenciadorBosses:
         })
         self.tempo_ultimo_disparo = agora
 
-    def _obter_subboss_boss5(self, boss):
-        for identificador, boss_ativo in zip(("boss3", "boss4"), self.bosses_ativos):
-            if boss_ativo is boss:
-                return identificador
-        return None
+    def _limpar_ataques(self):
+        self.balas.clear()
+        self.boss5_ataques.clear()
+        self.boss5_ataque7 = None
+        self.boss5_invocacao = None
+        for boss in self.bosses.values():
+            boss.ataques.clear()
 
-    def _processar_drop_boss5(self):
-        if self.item_papel is not None or self.documento_ativo:
-            return
-
-        for identificador_esperado in ("boss3", "boss4"):
-            if identificador_esperado not in self.boss5_drop_fila:
-                continue
-
-            self.boss5_drop_fila.remove(identificador_esperado)
-            boss_alvo = self.bosses.get(identificador_esperado)
-            if boss_alvo is None:
-                continue
-
-            self._criar_item_papel(boss_alvo)
-            return
-
-    def _registrar_derrota_boss5(self, boss):
-        identificador = self._obter_subboss_boss5(boss)
-        if identificador is None:
-            return False
-
-        if not self.boss5_vivos.get(identificador, False):
-            return False
-
-        vida_atual = self.boss5_vidas.get(identificador, 0)
-        if vida_atual <= 0:
-            return False
-
-        self.boss5_vidas[identificador] = max(0, vida_atual - 1)
-        self.vida = max(0, self.vida - 1)
-
-        if self.boss5_vidas[identificador] > 0:
-            fase_num = "1" if identificador == "boss3" else "2"
-            self.mensagem = (
-                f"Boss 5-{fase_num}: {self.boss5_vidas[identificador]} HP"
+    def _atualizar_ataques_boss5(self, interface):
+        agora = pygame.time.get_ticks()
+        if agora >= self.boss5_proximo_ataque_ms:
+            altura_fileira = (ALTURA / 2) / BOSS5_QUANTIDADE_FILEIRAS
+            largura_sprite = self.sprite_ataque_boss5.get_width()
+            for indice in range(BOSS5_QUANTIDADE_FILEIRAS):
+                direcao = -1 if indice % 2 == 0 else 1
+                x = (
+                    LARGURA + largura_sprite / 2
+                    if direcao < 0
+                    else -largura_sprite / 2
+                )
+                self.boss5_ataques.append({
+                    "posicao": pygame.Vector2(
+                        x,
+                        (indice + 0.5) * altura_fileira
+                    ),
+                    "direcao": direcao
+                })
+            self.boss5_proximo_ataque_ms = (
+                agora + BOSS5_INTERVALO_ATAQUE_MS
             )
-            self.mensagem_expira = pygame.time.get_ticks() + 700
-            return False
 
-        self.boss5_vivos[identificador] = False
-        boss.ataques.clear()
-        boss.ia_ativa = False
+        rect_jogador = self.jogador.obter_rect_dano()
+        novos_ataques = []
+        for ataque in self.boss5_ataques:
+            ataque["posicao"].x += (
+                ataque["direcao"] * BOSS5_VELOCIDADE_ATAQUE
+            )
+            rect_ataque = self.sprite_ataque_boss5.get_rect(
+                center=ataque["posicao"]
+            )
+            if rect_ataque.colliderect(rect_jogador):
+                direcao_ataque = pygame.Vector2(ataque["direcao"], 0)
+                interface.receber_dano(
+                    1,
+                    self.jogador,
+                    direcao_ataque,
+                    direcao_ataque * BOSS5_VELOCIDADE_ATAQUE
+                )
+                continue
+
+            if rect_ataque.right >= 0 and rect_ataque.left <= LARGURA:
+                novos_ataques.append(ataque)
+
+        self.boss5_ataques = novos_ataques
+
+    def _atualizar_invocacao_boss5(self, agora, interface):
+        if self.boss5_invocacao is None:
+            if agora < self.boss5_proxima_invocacao_ms:
+                return
+            self.boss5_invocacao = {
+                "inicio": agora,
+                "centro": pygame.Vector2(self.jogador.obter_rect().center),
+                "dano_causado": False
+            }
+            self.boss5_proxima_invocacao_ms = (
+                agora + BOSS5_INTERVALO_PEAO_MS
+            )
+            return
+
+        elapsed = agora - self.boss5_invocacao["inicio"]
+        duracao_total = (
+            BOSS5_PEAO_FADE_IN_MS
+            + BOSS5_PEAO_SAIDA_MS
+            + BOSS5_PEAO_FADE_OUT_MS
+        )
+        if (
+            elapsed >= BOSS5_PEAO_FADE_IN_MS
+            and not self.boss5_invocacao["dano_causado"]
+        ):
+            centro_x, centro_y = self.boss5_invocacao["centro"]
+            rect_tile = self.sprite_tile_boss5.get_rect(
+                center=(centro_x, centro_y)
+            )
+            rect_peao = self.sprite_peao_boss5.get_rect(
+                topleft=(
+                    centro_x - self.sprite_peao_boss5.get_width() / 2,
+                    rect_tile.top
+                )
+            )
+            if rect_peao.colliderect(self.jogador.obter_rect_dano()):
+                direcao = pygame.Vector2(0, -1)
+                interface.receber_dano(
+                    1,
+                    self.jogador,
+                    direcao,
+                    pygame.Vector2(0, -3)
+                )
+                self.boss5_invocacao["dano_causado"] = True
+
+        if elapsed >= duracao_total:
+            self.boss5_invocacao = None
+
+    def desenhar_invocacao_boss5(self, tela):
+        if self.identificador != "boss5" or self.boss5_invocacao is None:
+            return
+
+        invocacao = self.boss5_invocacao
+        elapsed = pygame.time.get_ticks() - invocacao["inicio"]
+        centro_x, centro_y = invocacao["centro"]
+        rect_tile = self.sprite_tile_boss5.get_rect(
+            center=(centro_x, centro_y)
+        )
+        angulo = (elapsed * 0.36) % 360
+        tile = pygame.transform.rotate(self.sprite_tile_boss5, angulo)
+        tela.blit(tile, tile.get_rect(center=rect_tile.center))
+
+        altura_peao = self.sprite_peao_boss5.get_height()
+        largura_peao = self.sprite_peao_boss5.get_width()
+        inicio_saida = BOSS5_PEAO_FADE_IN_MS
+        inicio_fade_out = inicio_saida + BOSS5_PEAO_SAIDA_MS
+
+        if elapsed < BOSS5_PEAO_FADE_IN_MS:
+            progresso = max(0.0, elapsed / BOSS5_PEAO_FADE_IN_MS)
+            altura_visivel = int(altura_peao * progresso)
+            if altura_visivel <= 0:
+                return
+            sprite = self.sprite_peao_boss5.subsurface(
+                pygame.Rect(
+                    0,
+                    altura_peao - altura_visivel,
+                    largura_peao,
+                    altura_visivel
+                )
+            ).copy()
+            sprite.set_alpha(int(progresso * 255))
+            posicao = (
+                int(centro_x - largura_peao / 2),
+                int(rect_tile.bottom - altura_visivel)
+            )
+            tela.blit(sprite, posicao)
+            return
+
+        if elapsed < inicio_fade_out:
+            progresso = min(
+                1.0,
+                (elapsed - inicio_saida) / BOSS5_PEAO_SAIDA_MS
+            )
+            alpha = 255
+            deslocamento_y = progresso * (TAMANHO_TILE // 2)
+        else:
+            progresso = min(
+                1.0,
+                (elapsed - inicio_fade_out) / BOSS5_PEAO_FADE_OUT_MS
+            )
+            alpha = int(255 * (1 - progresso))
+            deslocamento_y = (
+                TAMANHO_TILE // 2
+                + progresso * (TAMANHO_TILE // 2)
+            )
+
+        peao = self.sprite_peao_boss5.copy()
+        peao.set_alpha(alpha)
+        tela.blit(
+            peao,
+            (
+                int(centro_x - largura_peao / 2),
+                int(rect_tile.top - deslocamento_y)
+            )
+        )
+
+    def desenhar_ataques_boss5(self, tela):
+        if self.identificador != "boss5":
+            return
+
+        for ataque in self.boss5_ataques:
+            tela.blit(
+                self.sprite_ataque_boss5,
+                self.sprite_ataque_boss5.get_rect(
+                    center=ataque["posicao"]
+                )
+            )
+
+        if self.boss5_ataque7 is not None:
+            sprite = self.boss5_ataque7.get("sprite")
+            if sprite is not None:
+                tela.blit(
+                    sprite,
+                    sprite.get_rect(center=self.boss5_ataque7["posicao"])
+                )
+
+    def _atualizar_orbita_boss5(self, agora):
+        boss = self.boss
+        if self.boss5_movimento_inicio_ms is None:
+            self.boss5_movimento_inicio_ms = agora
+
+        tempo_parado = agora - self.boss5_movimento_inicio_ms
+        if tempo_parado < BOSS5_DURACAO_PARADO_MS:
+            sprites_parado = boss.sprites_boss5["parado"]
+            indice = min(
+                len(sprites_parado) - 1,
+                tempo_parado // 250
+            )
+            boss.sprite_boss5_atual = sprites_parado[indice]
+            self.boss5_ultimo_update_ms = agora
+            return
+
+        tempo_anterior = self.boss5_ultimo_update_ms
+        delta = 0 if tempo_anterior is None else min(
+            0.05,
+            max(0, (agora - tempo_anterior) / 1000)
+        )
+        self.boss5_ultimo_update_ms = agora
+        self.boss5_orbita_fase += delta * BOSS5_VELOCIDADE_ORBITA
+
+        fase = self.boss5_orbita_fase
+        centro_x = LARGURA / 2 + BOSS5_AMPLITUDE_X * math.sin(fase)
+        centro_y = (
+            ALTURA / 2 - 100
+            + BOSS5_AMPLITUDE_Y * math.sin(fase) * math.cos(fase)
+        )
+        sprite = boss.pegar_sprite()
+        centro_anterior_x = boss.x + sprite.get_width() / 2
+        boss.x = centro_x - sprite.get_width() / 2
+        boss.y = centro_y - sprite.get_height() / 2
         boss.movimento_x = 0
         boss.movimento_y = 0
         boss.esta_se_movendo = False
-        boss.frame = 0
-        boss.contador_animacao = 0
 
-        if identificador not in self.boss5_drop_fila:
-            self.boss5_drop_fila.append(identificador)
+        if centro_x - centro_anterior_x > 0.1:
+            boss.direcao = "direita"
+            boss.sprite_boss5_atual = boss.sprites_boss5["direita"]
+        elif centro_x - centro_anterior_x < -0.1:
+            boss.direcao = "esquerda"
+            boss.sprite_boss5_atual = boss.sprites_boss5["esquerda"]
+        elif self.boss5_ataque7 is None:
+            sprites_parado = boss.sprites_boss5["parado"]
+            boss.sprite_boss5_atual = sprites_parado[(
+                agora // 250) % len(sprites_parado)]
 
-        self.mensagem = f"Boss 5: {identificador.upper()} derrotado"
-        self.mensagem_expira = pygame.time.get_ticks() + 1200
+    def _explodir_ataque7_boss5(self, posicao):
+        agora = pygame.time.get_ticks()
+        for indice in range(BOSS5_QUANTIDADE_ESTILHACOS):
+            angulo = 2 * math.pi * indice / BOSS5_QUANTIDADE_ESTILHACOS
+            direcao = pygame.Vector2(math.cos(angulo), math.sin(angulo))
+            self.boss.ataques.append({
+                "posicao": pygame.Vector2(posicao),
+                "direcao": direcao,
+                "disparado_ms": agora,
+                "acertou": False,
+                "tipo": "ataque3",
+                "dano": 1,
+                "sprite": self.boss.sprite_ataque_3
+            })
 
-        self._processar_drop_boss5()
-        return True
+    def _atualizar_ataque_abertura_boss5(self, interface, agora):
+        if self.boss5_combate_inicio_ms is None:
+            self.boss5_combate_inicio_ms = agora
+
+        if (
+            not self.boss5_ataque_abertura_usado
+            and agora - self.boss5_combate_inicio_ms
+            >= BOSS5_ATRASO_ATAQUE_ABERTURA_MS
+        ):
+            self.boss5_ataque_abertura_usado = True
+            self.boss5_ataque_abertura_inicio_ms = agora
+            self.boss5_ataque7 = {
+                "fase": "formando",
+                "inicio_ms": agora,
+                "posicao": pygame.Vector2(0, 0),
+                "direcao": pygame.Vector2(),
+                "sprite": None
+            }
+
+        ataque = self.boss5_ataque7
+        if ataque is None:
+            return
+
+        if ataque["fase"] == "formando":
+            elapsed = agora - ataque["inicio_ms"]
+            progresso = min(1.0, elapsed / BOSS5_DURACAO_FORMACAO_MS)
+            frames_ataque = self.boss.sprites_boss5["ataque"]
+            indice_frame = min(
+                len(frames_ataque) - 1,
+                int(progresso * len(frames_ataque))
+            )
+            self.boss.sprite_boss5_atual = frames_ataque[indice_frame]
+
+            largura = max(1, int(self.sprite_ataque7.get_width() * progresso))
+            altura = max(1, int(self.sprite_ataque7.get_height() * progresso))
+            ataque["sprite"] = pygame.transform.scale(
+                self.sprite_ataque7,
+                (largura, altura)
+            )
+            ataque["posicao"] = pygame.Vector2(
+                self.boss.x + self.boss.pegar_sprite().get_width() / 2,
+                self.boss.y - altura / 2 - 12
+            )
+
+            if progresso >= 1.0:
+                alvo = pygame.Vector2(self.jogador.obter_rect_dano().center)
+                ataque["direcao"] = alvo - ataque["posicao"]
+                if ataque["direcao"].length_squared() == 0:
+                    ataque["direcao"] = pygame.Vector2(0, 1)
+                else:
+                    ataque["direcao"].normalize_ip()
+                ataque["fase"] = "lancado"
+                ataque["disparado_ms"] = agora
+                ataque["sprite"] = self.sprite_ataque7
+            return
+
+        ataque["posicao"] += (
+            ataque["direcao"] * BOSS5_VELOCIDADE_ATAQUE7
+        )
+        rect_ataque = self.sprite_ataque7.get_rect(
+            center=ataque["posicao"]
+        )
+        acertou_jogador = rect_ataque.colliderect(
+            self.jogador.obter_rect_dano()
+        )
+        pontos = (
+            (rect_ataque.left, rect_ataque.top),
+            (rect_ataque.right - 1, rect_ataque.top),
+            (rect_ataque.left, rect_ataque.bottom - 1),
+            (rect_ataque.right - 1, rect_ataque.bottom - 1)
+        )
+        acertou_parede = (
+            rect_ataque.left <= 0
+            or rect_ataque.right >= LARGURA
+            or rect_ataque.top <= 0
+            or rect_ataque.bottom >= ALTURA
+            or (
+                agora - ataque["disparado_ms"] >= 150
+                and any(eh_parede(x, y) for x, y in pontos)
+            )
+        )
+
+        if acertou_jogador or acertou_parede:
+            if acertou_jogador:
+                interface.receber_dano(
+                    3,
+                    self.jogador,
+                    ataque["direcao"],
+                    ataque["direcao"] * BOSS5_VELOCIDADE_ATAQUE7
+                )
+            self._explodir_ataque7_boss5(ataque["posicao"])
+            self.boss5_ataque7 = None
+
+    def _atualizar_boss5(self, interface):
+        agora = pygame.time.get_ticks()
+        self._atualizar_orbita_boss5(agora)
+        self._atualizar_invocacao_boss5(agora, interface)
+        self._atualizar_ataques_boss5(interface)
+        self._atualizar_ataque_abertura_boss5(interface, agora)
+        self.boss.atualizar_ataques(self.jogador, interface)
 
     def _iniciar_efeito_derrota(self):
         self.posicao_ultimo_boss = (self.boss.x, self.boss.y)
+        pode_cair = self.identificador not in ("pbrr", "boss6")
         self.efeito_derrota = {
             "inicio": pygame.time.get_ticks(),
-            "duracao": 1600 if self.identificador == "boss6" else 1200,
+            "duracao": (
+                TEMPO_DESAPARECER_BOSS_MS
+                if pode_cair
+                else 1600 if self.identificador == "boss6" else 1200
+            ),
+            "duracao_queda": DURACAO_QUEDA_BOSS_MS if pode_cair else 0,
             "offset_x": 0.0,
             "offset_y": 0.0,
             "sprite_final": self._obter_sprite_derrota(),
             "brilho": 1.0,
             "drop_papel": self.dados.get("drop_papel", True),
-            "aplicar_brilho": self.identificador == "pbrr"
+            "aplicar_brilho": self.identificador == "pbrr",
+            "persistir": self.identificador in ("boss3", "boss4")
         }
+        if pode_cair:
+            self.boss.efeito_derrota = self.efeito_derrota
 
-    def _obter_sprite_derrota(self):
-        if self.boss is None:
+    def _obter_sprite_derrota(self, boss=None):
+        alvo = boss or self.boss
+        if alvo is None:
             return None
 
         for sprites in (
-            getattr(self.boss, "direita", None),
-            getattr(self.boss, "frente", None),
-            getattr(self.boss, "esquerda", None),
-            getattr(self.boss, "costas", None)
+            getattr(alvo, "direita", None),
+            getattr(alvo, "frente", None),
+            getattr(alvo, "esquerda", None),
+            getattr(alvo, "costas", None)
         ):
             if isinstance(sprites, list) and len(sprites) >= 3:
                 return sprites[2]
 
-        return self.boss.pegar_sprite()
+        return alvo.pegar_sprite()
 
     def _atualizar_efeito_derrota(self):
         agora = pygame.time.get_ticks()
@@ -458,11 +939,6 @@ class GerenciadorBosses:
             if self.efeito_derrota.get("drop_papel"):
                 self._criar_item_papel(boss_anterior)
             self.efeito_derrota = None
-            if self.identificador == "boss5":
-                if any(self.boss5_vivos.values()):
-                    return
-                self._proximo_boss()
-                return
             if not self.dados or not self.dados.get("drop_papel", True):
                 self._proximo_boss()
             return
@@ -492,11 +968,6 @@ class GerenciadorBosses:
                 self.efeito_derrota["brilho"] = 1.0
 
     def _obter_dados_drop(self, boss=None):
-        if self.identificador == "boss5":
-            subboss = self._obter_subboss_boss5(
-                boss) if boss is not None else None
-            if subboss in ("boss3", "boss4"):
-                return BOSS_DADOS.get(subboss, self.dados)
         return self.dados
 
     def _criar_item_papel(self, boss=None):
@@ -728,8 +1199,6 @@ class GerenciadorBosses:
                     self.item_papel.get("texto_documento")
                 )
                 self.item_papel = None
-                if self.identificador == "boss5":
-                    self._processar_drop_boss5()
 
         if self.documento_em_exibicao is None:
             return
@@ -758,12 +1227,6 @@ class GerenciadorBosses:
                 self.documento_em_exibicao = None
                 self.documento_ativo = False
                 if not estado.get("avancar_boss", True):
-                    return
-                if self.identificador == "boss5":
-                    if any(self.boss5_vivos.values()):
-                        self._processar_drop_boss5()
-                        return
-                    self._proximo_boss()
                     return
                 self._proximo_boss()
 
@@ -802,18 +1265,10 @@ class GerenciadorBosses:
 
     def _atualizar_balas(self):
         novas_balas = []
-
-        if self.identificador == "boss5":
-            boss_rects = [
-                (boss, boss.obter_rect_alvo())
-                for boss in self.bosses_ativos
-                if self.boss5_vivos.get(self._obter_subboss_boss5(boss), False)
-            ]
-        else:
-            boss_rects = [
-                (boss, boss.obter_rect_alvo())
-                for boss in self.bosses_ativos
-            ]
+        boss_rects = [
+            (boss, boss.obter_rect_alvo())
+            for boss in self.bosses_ativos
+        ]
 
         for bala in self.balas:
             bala["posicao"] += bala["direcao"] * VELOCIDADE_BALA
@@ -828,23 +1283,13 @@ class GerenciadorBosses:
                     break
 
             if boss_hit is not None:
-                if self.identificador == "boss5":
-                    if self._registrar_derrota_boss5(boss_hit):
-                        self.balas = []
-                        return
-                    self.vida = max(0, self.vida - 1)
-                    self.mensagem = f"Boss 5: {self.vida} HP restante"
-                    self.mensagem_expira = pygame.time.get_ticks() + 900
-                else:
-                    self.vida = max(0, self.vida - 1)
-                    self.mensagem = f"{self.dados['nome']}: {self.vida} HP"
-                    self.mensagem_expira = pygame.time.get_ticks() + 900
-                    if self.vida == 0:
-                        for boss in self.bosses_ativos:
-                            boss.ataques.clear()
-                        self._iniciar_efeito_derrota()
-                        self.balas = []
-                        return
+                self.vida = max(0, self.vida - 1)
+                self.mensagem = f"{self.dados['nome']}: {self.vida} HP"
+                self.mensagem_expira = pygame.time.get_ticks() + 900
+                if self.vida == 0:
+                    self._limpar_ataques()
+                    self._iniciar_efeito_derrota()
+                    return
                 continue
 
             pontos = [
@@ -884,10 +1329,14 @@ class GerenciadorBosses:
         return self.boss
 
     def obter_bosses(self):
-        return self.bosses_ativos
+        return self.bosses_visiveis
 
     def desenhar_interface(self, tela):
-        if self.boss is None or self.dados is None:
+        if (
+            self.boss is None
+            or self.dados is None
+            or self.boss5_fusao is not None
+        ):
             return
 
         largura = 360
@@ -895,47 +1344,19 @@ class GerenciadorBosses:
         x = (LARGURA - largura) // 2
         y = 18
 
-        if self.identificador == "boss5":
-            vida3 = self.boss5_vidas.get("boss3", 0)
-            vida4 = self.boss5_vidas.get("boss4", 0)
-            vida_maxima3 = BOSS_DADOS["boss3"]["vida"]
-            vida_maxima4 = BOSS_DADOS["boss4"]["vida"]
+        proporcao = self.vida / self.vida_maxima if self.vida_maxima else 0
 
-            pygame.draw.rect(tela, (25, 25, 25), (x, y, largura, altura))
-            pygame.draw.rect(
-                tela,
-                (190, 35, 45),
-                (x, y, int(largura * (vida3 / max(1, vida_maxima3))), altura)
-            )
-            pygame.draw.rect(tela, (240, 220, 190), (x, y, largura, altura), 2)
+        pygame.draw.rect(tela, (25, 25, 25), (x, y, largura, altura))
+        pygame.draw.rect(
+            tela,
+            (190, 35, 45),
+            (x, y, int(largura * proporcao), altura)
+        )
+        pygame.draw.rect(tela, (240, 220, 190), (x, y, largura, altura), 2)
 
-            y2 = y + altura + 12
-            pygame.draw.rect(tela, (25, 25, 25), (x, y2, largura, altura))
-            pygame.draw.rect(
-                tela,
-                (190, 35, 45),
-                (x, y2, int(largura * (vida4 / max(1, vida_maxima4))), altura)
-            )
-            pygame.draw.rect(tela, (240, 220, 190),
-                             (x, y2, largura, altura), 2)
-
-            fonte = pygame.font.Font(None, 26)
-            nome = fonte.render(self.dados["nome"], True, (255, 255, 255))
-            tela.blit(nome, (x, y + altura + 4 + altura + 12))
-        else:
-            proporcao = self.vida / self.vida_maxima if self.vida_maxima else 0
-
-            pygame.draw.rect(tela, (25, 25, 25), (x, y, largura, altura))
-            pygame.draw.rect(
-                tela,
-                (190, 35, 45),
-                (x, y, int(largura * proporcao), altura)
-            )
-            pygame.draw.rect(tela, (240, 220, 190), (x, y, largura, altura), 2)
-
-            fonte = pygame.font.Font(None, 26)
-            nome = fonte.render(self.dados["nome"], True, (255, 255, 255))
-            tela.blit(nome, (x, y + altura + 4))
+        fonte = pygame.font.Font(None, 26)
+        nome = fonte.render(self.dados["nome"], True, (255, 255, 255))
+        tela.blit(nome, (x, y + altura + 4))
 
         if pygame.time.get_ticks() < self.mensagem_expira:
             mensagem = fonte.render(self.mensagem, True, (255, 230, 160))

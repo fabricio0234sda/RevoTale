@@ -1,4 +1,5 @@
 Setas = Mirar
 WASD = Movimentar
 Ctrl = Andar devagar
+E = Interagir
 + = Ficar invencivel

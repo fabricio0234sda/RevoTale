@@ -528,20 +528,55 @@ def carregar_boss7():
     return (sprites, sprites, sprites, sprites)
 
 
+def carregar_boss5():
+    def carregar(nome):
+        sprite = pygame.image.load(
+            f"assets/boss5/{nome}.png"
+        ).convert_alpha()
+        return pygame.transform.scale(
+            sprite,
+            (
+                sprite.get_width() * ESCALA,
+                sprite.get_height() * ESCALA
+            )
+        )
+
+    return (
+        [carregar(f"XTparado{i}") for i in range(1, 4)],
+        carregar("XTesquerda"),
+        carregar("XTdireita"),
+        [carregar(f"XTataque{i}") for i in range(1, 7)]
+    )
+
+
 def carregar_boss(pasta):
 
     if pasta == "boss2":
-        sprite_frente = pygame.image.load(
-            "assets/boss2/frente1.png"
-        ).convert_alpha()
-        frente = [pygame.transform.scale(
-            sprite_frente,
-            (
-                sprite_frente.get_width() * ESCALA,
-                sprite_frente.get_height() * ESCALA
-            )
-        )] * 4
-        costas = frente[:]
+        frente = []
+        for i in range(1, 5):
+            sprite = pygame.image.load(
+                f"assets/boss2/frente{i}.png"
+            ).convert_alpha()
+            frente.append(pygame.transform.scale(
+                sprite,
+                (
+                    sprite.get_width() * ESCALA,
+                    sprite.get_height() * ESCALA
+                )
+            ))
+
+        costas = []
+        for i in range(1, 5):
+            sprite = pygame.image.load(
+                f"assets/boss2/cima{i}.png"
+            ).convert_alpha()
+            costas.append(pygame.transform.scale(
+                sprite,
+                (
+                    sprite.get_width() * ESCALA,
+                    sprite.get_height() * ESCALA
+                )
+            ))
 
         esquerda = []
         for i in range(1, 5):

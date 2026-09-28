@@ -1,4 +1,5 @@
 import math
+import os
 
 import pygame
 import sys
@@ -30,7 +31,7 @@ from tela_inicial import tela_inicial
 # CENAS
 # ==========================================
 
-from cenas import mostrar_cenas, mostrar_final, quebrar_texto
+from cenas import mostrar_cenas, quebrar_texto
 
 
 # ==========================================
@@ -45,6 +46,7 @@ from recursos import (
     carregar_eren,
     carregar_pbrr,
     carregar_boss,
+    carregar_boss5,
     carregar_boss6,
     carregar_boss7,
     carregar_arma,
@@ -155,6 +157,37 @@ tela_jogo = pygame.Surface(
     )
 )
 superficie_transicao = pygame.Surface((LARGURA, ALTURA))
+CENA_GAMEOVER_ATRASO_MS = 3000
+CENA_GAMEOVER_FADE_MS = 500
+BOTAO_DURACAO_ANIMACAO_MS = 1200
+BOTAO_FADE_PRETO_MS = 2000
+CENA6_FADE_MS = 500
+REINICIAR_TECLAS = (
+    pygame.K_LEFT,
+    pygame.K_RIGHT,
+    pygame.K_UP,
+    pygame.K_DOWN,
+    pygame.K_w,
+    pygame.K_a,
+    pygame.K_s,
+    pygame.K_d,
+    pygame.K_SPACE,
+    pygame.K_RETURN,
+    pygame.K_KP_ENTER,
+    pygame.K_LCTRL,
+    pygame.K_RCTRL
+)
+sprite_gameover_original = pygame.image.load(
+    "assets/cenas/gameover.png"
+).convert_alpha()
+sprite_gameover = pygame.transform.scale(
+    sprite_gameover_original,
+    (LARGURA, ALTURA)
+)
+sprite_cena6 = pygame.transform.scale(
+    pygame.image.load("assets/cenas/cena6.png").convert_alpha(),
+    (LARGURA, ALTURA)
+)
 
 
 # ==========================================
@@ -236,6 +269,15 @@ def apresentar_tela():
             (largura_tela - novo_tamanho[0]) // 2,
             (altura_tela - novo_tamanho[1]) // 2
         )
+    )
+
+
+def reiniciar_jogo():
+    pygame.quit()
+    os.execl(
+        sys.executable,
+        sys.executable,
+        os.path.abspath(__file__)
     )
 
 
@@ -420,6 +462,28 @@ for identificador, pasta in (
             bosses[identificador].sprite_ataque_4
         ]
 
+(
+    sprites_boss5_parado,
+    sprite_boss5_esquerda,
+    sprite_boss5_direita,
+    sprites_boss5_ataque
+) = carregar_boss5()
+bosses["boss5"] = PBRR(
+    sprites_boss5_parado,
+    sprites_boss5_parado,
+    [sprite_boss5_esquerda],
+    [sprite_boss5_direita],
+    LARGURA // 2,
+    ALTURA // 2 - 100
+)
+bosses["boss5"].configurar_sprites_boss5(
+    sprites_boss5_parado,
+    sprite_boss5_esquerda,
+    sprite_boss5_direita,
+    sprites_boss5_ataque
+)
+bosses["boss5"].configurar_padrao_ataque("boss5")
+
 bosses["boss2"].configurar_padrao_ataque("boss2")
 bosses["boss3"].configurar_padrao_ataque("boss3")
 bosses["boss4"].configurar_padrao_ataque("boss4")
@@ -449,7 +513,7 @@ bosses["boss7"] = PBRR(
     LARGURA // 2,
     ALTURA // 2
 )
-bosses["boss7"].configurar_padrao_ataque("boss6")
+bosses["boss7"].configurar_padrao_ataque("boss7")
 
 # ==========================================
 # CRIAR JOGADOR
@@ -480,30 +544,22 @@ papel_final = pygame.transform.scale(
     pygame.image.load("assets/Documentos/Papel.png").convert_alpha(),
     (54, 54)
 )
-botao_normal = pygame.transform.scale(
-    pygame.image.load("assets/botao/botao1.png").convert_alpha(),
-    (23, 12)
-)
+botao_normal = pygame.image.load(
+    "assets/botao/botao1.png"
+).convert_alpha()
 botao_frames = [
     botao_normal,
-    pygame.transform.scale(
-        pygame.image.load("assets/botao/botao2.png").convert_alpha(),
-        (23, 12)
-    ),
-    pygame.transform.scale(
-        pygame.image.load("assets/botao/botao3.png").convert_alpha(),
-        (23, 12)
-    )
+    pygame.image.load("assets/botao/botao2.png").convert_alpha(),
+    pygame.image.load("assets/botao/botao3.png").convert_alpha()
 ]
-botao_selecionado = pygame.transform.scale(
-    pygame.image.load("assets/botao/botaoselected.png").convert_alpha(),
-    (23, 12)
-)
+botao_selecionado = pygame.image.load(
+    "assets/botao/botaoselected.png"
+).convert_alpha()
 rect_papel_final = papel_final.get_rect(
     center=(LARGURA // 2, ALTURA // 2)
 )
 rect_botao_final = botao_normal.get_rect(
-    center=(LARGURA // 2, rect_papel_final.top - 2)
+    center=(LARGURA // 2, rect_papel_final.centery - TAMANHO_TILE)
 )
 texto_papel_final = (
     "Incrompreensível! Inconcebível!\n"
@@ -520,7 +576,8 @@ porta_estado = {
 }
 botao_estado = {
     "animando": False,
-    "inicio": 0
+    "inicio": 0,
+    "fase": "idle"
 }
 
 
@@ -560,13 +617,6 @@ def atualizar_porta():
             jogador.y = ALTURA - 120
             jogador.velocidade_x = 0
             jogador.velocidade_y = 0
-            porta_estado["fase"] = "fade_in"
-            porta_estado["inicio"] = agora
-            porta_estado["indice"] = 7
-        return
-
-    if porta_estado["fase"] == "fade_in":
-        if agora - porta_estado["inicio"] >= 1000:
             sprite_jogador = jogador.pegar_sprite()
             sprite_eren = eren.baixo[0]
             rect_jogador = sprite_jogador.get_rect(
@@ -580,6 +630,13 @@ def atualizar_porta():
             eren.contador_animacao = 0
             eren.direcao_bloqueada = None
             eren.tempo_bloqueado = 0
+            porta_estado["fase"] = "fade_in"
+            porta_estado["inicio"] = agora
+            porta_estado["indice"] = 7
+        return
+
+    if porta_estado["fase"] == "fade_in":
+        if agora - porta_estado["inicio"] >= 1000:
             porta_estado["fase"] = "done"
             porta_estado["finalizado"] = True
         return
@@ -841,6 +898,7 @@ def interagir_com_alvo():
     elif alvo == "botao":
         botao_estado["animando"] = True
         botao_estado["inicio"] = pygame.time.get_ticks()
+        botao_estado["fase"] = "animacao"
 
 
 # ==========================================
@@ -895,16 +953,28 @@ while rodando:
             if evento.key == pygame.K_e:
                 interagir_com_alvo()
 
+            if (
+                interface.morta
+                and evento.key in REINICIAR_TECLAS
+            ):
+                reiniciar_jogo()
+
     if not rodando:
         break
 
+    agora = pygame.time.get_ticks()
     if (
-        botao_estado["animando"]
-        and pygame.time.get_ticks() - botao_estado["inicio"] >= 1200
+        botao_estado["fase"] == "animacao"
+        and agora - botao_estado["inicio"] >= BOTAO_DURACAO_ANIMACAO_MS
     ):
-        mostrar_final(tela)
-        rodando = False
-        break
+        botao_estado["fase"] = "fade_preto"
+        botao_estado["inicio"] = agora
+    elif (
+        botao_estado["fase"] == "fade_preto"
+        and agora - botao_estado["inicio"] >= BOTAO_FADE_PRETO_MS
+    ):
+        botao_estado["fase"] = "cena6"
+        botao_estado["inicio"] = agora
 
     # ======================================
     # ATUALIZAR CAIXA DE DIÁLOGO
@@ -920,6 +990,9 @@ while rodando:
     if not interface.morta:
         atualizar_porta()
 
+    if gerenciador_bosses.boss5_fusao is not None:
+        gerenciador_bosses.atualizar(interface)
+
     # ======================================
     # ATUALIZAR JOGO
     # ======================================
@@ -929,6 +1002,7 @@ while rodando:
         and caixa_dialogo.pode_mover()
         and porta_estado["fase"] not in ("fade_out", "fade_in")
         and not botao_estado["animando"]
+        and gerenciador_bosses.boss5_fusao is None
     ):
 
         gerenciador_bosses.atualizar(interface)
@@ -996,13 +1070,56 @@ while rodando:
     )
 
     if interface.morta:
-        interface.desenhar_gore(
-            tela_jogo
+        tempo_morte = max(
+            0,
+            pygame.time.get_ticks() - interface.game_over_inicio
         )
+        interface.desenhar_gore(tela_jogo)
         jogador.desenhar(
             tela_jogo,
             interface.obter_alpha_game_over()
         )
+        if tempo_morte >= CENA_GAMEOVER_ATRASO_MS:
+            progresso_fade = min(
+                1.0,
+                (tempo_morte - CENA_GAMEOVER_ATRASO_MS)
+                / CENA_GAMEOVER_FADE_MS
+            )
+            sprite_com_fade = sprite_gameover.copy()
+            sprite_com_fade.set_alpha(int(progresso_fade * 255))
+            tela_jogo.blit(
+                sprite_com_fade,
+                sprite_com_fade.get_rect(
+                    center=tela_jogo.get_rect().center)
+            )
+            alpha_texto = int(
+                (
+                    150
+                    + math.sin(tempo_morte / 1000 * 6) * 80
+                ) * progresso_fade
+            )
+            fonte_gameover = pygame.font.Font(None, 32)
+            frase_gameover = fonte_gameover.render(
+                "Não deixe sua história ser apagada!",
+                True,
+                (255, 255, 255)
+            )
+            frase_gameover.set_alpha(alpha_texto)
+            frase_gameover_rect = frase_gameover.get_rect(
+                center=(LARGURA // 2, ALTURA // 2 + 180)
+            )
+            tela_jogo.blit(frase_gameover, frase_gameover_rect)
+
+            texto_reiniciar = fonte_gameover.render(
+                "Jogar novamente",
+                True,
+                (255, 255, 255)
+            )
+            texto_reiniciar.set_alpha(alpha_texto)
+            texto_reiniciar_rect = texto_reiniciar.get_rect(
+                center=(LARGURA // 2, ALTURA // 2 + 220)
+            )
+            tela_jogo.blit(texto_reiniciar, texto_reiniciar_rect)
     else:
         # ======================================
         # DESENHAR MAPA
@@ -1040,6 +1157,8 @@ while rodando:
         for boss in bosses_ativos:
             boss.desenhar_ataques(tela_jogo)
 
+        gerenciador_bosses.desenhar_ataques_boss5(tela_jogo)
+
         gerenciador_bosses.desenhar_balas(
             tela_jogo
         )
@@ -1059,16 +1178,34 @@ while rodando:
             tela_jogo.blit(arma_sprite_na_mao, rect_arma)
 
         for _, personagem in personagens:
-            if (
-                personagem in bosses_ativos
-                and gerenciador_bosses.efeito_derrota is not None
-            ):
-                deslocamento = gerenciador_bosses.efeito_derrota
-                sprite = deslocamento.get(
+            efeito_derrota = None
+            if personagem in bosses_ativos:
+                efeito_derrota = getattr(
+                    personagem,
+                    "efeito_derrota",
+                    None
+                )
+                if (
+                    efeito_derrota is None
+                    and personagem is gerenciador_bosses.boss
+                ):
+                    efeito_derrota = gerenciador_bosses.efeito_derrota
+
+            if efeito_derrota is not None:
+                elapsed = pygame.time.get_ticks() - efeito_derrota["inicio"]
+                duracao_queda = efeito_derrota.get("duracao_queda", 0)
+                if (
+                    duracao_queda
+                    and elapsed >= efeito_derrota["duracao"]
+                    and not efeito_derrota.get("persistir", False)
+                ):
+                    continue
+
+                sprite = efeito_derrota.get(
                     "sprite_final") or personagem.pegar_sprite()
                 sprite = sprite.copy()
-                brilho = deslocamento.get("brilho", 1.0)
-                if brilho > 1.0 and deslocamento.get("aplicar_brilho", False):
+                brilho = efeito_derrota.get("brilho", 1.0)
+                if brilho > 1.0 and efeito_derrota.get("aplicar_brilho", False):
                     brilho_surface = sprite.copy()
                     for y in range(brilho_surface.get_height()):
                         for x in range(brilho_surface.get_width()):
@@ -1085,15 +1222,30 @@ while rodando:
                                 (novo_r, novo_g, novo_b, a)
                             )
                     sprite = brilho_surface
-                tela_jogo.blit(
-                    sprite,
-                    (
-                        personagem.x + deslocamento["offset_x"],
-                        personagem.y + deslocamento["offset_y"]
-                    )
+                posicao = (
+                    personagem.x + efeito_derrota.get("offset_x", 0.0),
+                    personagem.y + efeito_derrota.get("offset_y", 0.0)
                 )
+                if duracao_queda:
+                    progresso = min(1.0, elapsed / duracao_queda)
+                    angulo = efeito_derrota.get("angulo", 90 * progresso)
+                    angulo_rad = math.radians(angulo)
+                    largura_original = sprite.get_width()
+                    altura_original = sprite.get_height()
+                    pivo_x = posicao[0] + largura_original / 2
+                    pivo_y = posicao[1] + altura_original
+                    centro = (
+                        pivo_x - math.sin(angulo_rad) * altura_original / 2,
+                        pivo_y - math.cos(angulo_rad) * altura_original / 2
+                    )
+                    sprite = pygame.transform.rotate(sprite, angulo)
+                    tela_jogo.blit(sprite, sprite.get_rect(center=centro))
+                else:
+                    tela_jogo.blit(sprite, posicao)
             else:
                 personagem.desenhar(tela_jogo)
+
+        gerenciador_bosses.desenhar_invocacao_boss5(tela_jogo)
 
         if not arma_coletada:
             sprite_arma = pygame.transform.rotate(arma, arma_angulo - 90)
@@ -1146,11 +1298,37 @@ while rodando:
 
     desenhar_transicao(tela_jogo)
 
+    if botao_estado["fase"] == "fade_preto":
+        progresso_preto = min(
+            1.0,
+            (pygame.time.get_ticks() - botao_estado["inicio"])
+            / BOTAO_FADE_PRETO_MS
+        )
+        superficie_transicao.fill((0, 0, 0))
+        superficie_transicao.set_alpha(int(progresso_preto * 255))
+        tela_jogo.blit(superficie_transicao, (0, 0))
+    elif botao_estado["fase"] == "cena6":
+        progresso_cena6 = min(
+            1.0,
+            (pygame.time.get_ticks() - botao_estado["inicio"])
+            / CENA6_FADE_MS
+        )
+        tela_jogo.fill((0, 0, 0))
+        imagem_cena6 = sprite_cena6.copy()
+        imagem_cena6.set_alpha(int(progresso_cena6 * 255))
+        tela_jogo.blit(imagem_cena6, (0, 0))
+
     # ======================================
     # APRESENTAR TELA
     # ======================================
 
     apresentar_tela()
+
+    alpha_flash_boss5 = gerenciador_bosses.alpha_flash_boss5()
+    if alpha_flash_boss5 > 0:
+        flash = pygame.Surface(tela.get_size(), pygame.SRCALPHA)
+        flash.fill((255, 255, 255, alpha_flash_boss5))
+        tela.blit(flash, (0, 0))
 
     # ======================================
     # ATUALIZAR DISPLAY
